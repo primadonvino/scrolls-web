@@ -60,6 +60,17 @@ export type ScrollsPost = {
   };
 };
 
+export type ScrollsComment = {
+  id: UUID;
+  author: ScrollsUser;
+  body: string;
+  createdAt?: string;
+  created_at?: string;
+  likedBy?: UUID[];
+  liked_by?: UUID[];
+  replies?: ScrollsComment[];
+};
+
 export type AuthSession = {
   token: string;
   refresh_token?: string;

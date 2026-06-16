@@ -1,4 +1,4 @@
-import type { AuthSession, FeedResponse, ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
+import type { AuthSession, FeedResponse, ScrollsComment, ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
 
 const supabaseURL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -85,5 +85,48 @@ export async function blockUser(targetUserID: string, token?: string) {
   return request<{ ok: boolean }>("/me/block", {
     method: "POST",
     body: JSON.stringify({ targetUserID })
+  }, token);
+}
+
+export async function fetchComments(postID: string, token?: string) {
+  return request<ScrollsComment[]>(`/posts/${encodeURIComponent(postID)}/comments`, { cache: "no-store" }, token);
+}
+
+export async function createComment(postID: string, authorID: string, body: string, token: string) {
+  return request<{ ok: boolean; id?: string }>("/comments", {
+    method: "POST",
+    body: JSON.stringify({
+      id: crypto.randomUUID(),
+      postID,
+      authorID,
+      body
+    })
+  }, token);
+}
+
+export async function createRescroll(userID: string, originalPostID: string, token: string) {
+  return request<{ ok: boolean }>("/rescrolls", {
+    method: "POST",
+    body: JSON.stringify({ userID, originalPostID })
+  }, token);
+}
+
+export async function followUser(followerID: string, followeeID: string, token: string) {
+  return request<{ ok: boolean; status?: string; requested?: boolean; following?: boolean }>("/follows", {
+    method: "POST",
+    body: JSON.stringify({ followerID, followeeID })
+  }, token);
+}
+
+export async function reportContent(
+  targetType: string,
+  targetID: string,
+  reason = "spam",
+  token?: string,
+  targetOwnerID?: string
+) {
+  return request<{ ok: boolean }>("/me/content-report", {
+    method: "POST",
+    body: JSON.stringify({ targetType, targetID, targetOwnerID, reason })
   }, token);
 }

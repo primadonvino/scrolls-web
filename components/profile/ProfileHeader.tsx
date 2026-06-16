@@ -1,5 +1,6 @@
 import { Avatar } from "@/components/Avatar";
 import { AppCTA } from "@/components/AppCTA";
+import { ProfileActions } from "@/components/profile/ProfileActions";
 import type { ScrollsUser } from "@/lib/types/scrolls";
 
 export function ProfileHeader({ profile }: { profile: ScrollsUser }) {
@@ -21,8 +22,8 @@ export function ProfileHeader({ profile }: { profile: ScrollsUser }) {
         </div>
       </div>
       {profile.bio ? <p className="mt-5 whitespace-pre-wrap text-white/80">{profile.bio}</p> : null}
-      <div className="mt-6 flex flex-wrap gap-3">
-        <a href={`scrolls://user/${profile.username}`} className="rounded-full bg-scrolls-blue px-5 py-3 text-sm font-bold">Open in Scrolls</a>
+      <ProfileActions profile={profile} />
+      <div className="mt-3 flex flex-wrap gap-3">
         <AppCTA />
       </div>
     </section>

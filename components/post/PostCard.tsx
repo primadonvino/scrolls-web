@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { MediaRenderer } from "@/components/media/MediaRenderer";
+import { PostActions } from "@/components/post/PostActions";
 import type { ScrollsPost } from "@/lib/types/scrolls";
 
-export function PostCard({ post }: { post: ScrollsPost }) {
+export function PostCard({ post, onBlocked }: { post: ScrollsPost; onBlocked?: (userID: string) => void }) {
   const author = post.author ?? post.user;
   const displayName = author?.displayName ?? author?.display_name ?? author?.username ?? "Scrolls user";
   const username = author?.username ?? "user";
@@ -22,6 +23,7 @@ export function PostCard({ post }: { post: ScrollsPost }) {
       {post.caption && (
         <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-white/85">{post.caption}</p>
       )}
+      <PostActions post={post} onBlocked={onBlocked} />
       <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-xs text-white/45">
         <span>{post.locationCity ?? post.location_city ?? ""}</span>
         <Link href={`/scroll/${post.id}`} className="font-semibold text-white/75">Open scroll</Link>

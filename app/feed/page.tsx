@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { PostCard } from "@/components/post/PostCard";
 import { SiteHeader } from "@/components/SiteHeader";
 import { fetchFeed } from "@/lib/api/scrolls";
-import { readSession } from "@/lib/auth/session";
+import { readFreshSession } from "@/lib/auth/session";
 import type { ScrollsPost } from "@/lib/types/scrolls";
 
 export default function FeedPage() {
@@ -15,8 +15,8 @@ export default function FeedPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const session = readSession();
-    fetchFeed(session?.token, session?.user?.id)
+    readFreshSession()
+      .then((session) => fetchFeed(session?.token, session?.user?.id))
       .then((result) => {
         if (!cancelled) setPosts(result.posts);
       })
@@ -30,6 +30,13 @@ export default function FeedPage() {
       cancelled = true;
     };
   }, []);
+
+  function removeBlockedAuthor(userID: string) {
+    setPosts((current) => current.filter((post) => {
+      const author = post.author ?? post.user;
+      return author?.id !== userID;
+    }));
+  }
 
   return (
     <div>
@@ -45,7 +52,7 @@ export default function FeedPage() {
         {loading ? <p className="rounded-2xl bg-white/[0.04] p-5 text-white/60">Loading feed...</p> : null}
         {error ? <p className="rounded-2xl border border-red-400/30 bg-red-500/10 p-5 text-red-200">{error}</p> : null}
         <div className="space-y-6">
-          {posts.map((post) => <PostCard key={post.id} post={post} />)}
+          {posts.map((post) => <PostCard key={post.id} post={post} onBlocked={removeBlockedAuthor} />)}
         </div>
       </section>
     </div>
