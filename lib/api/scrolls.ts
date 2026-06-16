@@ -68,6 +68,12 @@ export async function fetchAuthorPosts(authorID: string, token?: string) {
   return Array.isArray(result) ? result : result.posts ?? [];
 }
 
+export async function fetchPost(postID: string, token?: string) {
+  const params = new URLSearchParams({ id: postID });
+  const result = await request<{ post?: ScrollsPost } | ScrollsPost>(`/posts/by-id?${params}`, { cache: "no-store" }, token);
+  return "post" in result ? result.post ?? null : result;
+}
+
 export async function reportPost(postID: string, reason = "spam", token?: string) {
   return request<{ ok: boolean }>("/posts/report", {
     method: "POST",
