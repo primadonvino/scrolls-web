@@ -1,0 +1,30 @@
+import { Avatar } from "@/components/Avatar";
+import { AppCTA } from "@/components/AppCTA";
+import type { ScrollsUser } from "@/lib/types/scrolls";
+
+export function ProfileHeader({ profile }: { profile: ScrollsUser }) {
+  const displayName = profile.displayName ?? profile.display_name ?? profile.username;
+  const isGold = (profile.subscriptionPlan ?? profile.subscription_plan) === "gold";
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-scrolls-panel p-6">
+      <div className="flex items-center gap-4">
+        <Avatar user={profile} size={84} />
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="truncate text-3xl font-black">{displayName}</h1>
+            {(profile.isFounder ?? profile.is_founder) && <span className="rounded-full bg-scrolls-gold px-2 py-1 text-xs font-bold text-black">Founder</span>}
+            {(profile.isVerified ?? profile.is_verified) && <span className="rounded-full bg-scrolls-blue px-2 py-1 text-xs font-bold">Verified</span>}
+            {isGold && <span className="rounded-full border border-scrolls-gold px-2 py-1 text-xs font-bold text-scrolls-gold">Gold</span>}
+          </div>
+          <p className="text-white/60">@{profile.username}</p>
+          {profile.homeCity || profile.home_city ? <p className="mt-1 text-sm text-white/50">{profile.homeCity ?? profile.home_city}</p> : null}
+        </div>
+      </div>
+      {profile.bio ? <p className="mt-5 whitespace-pre-wrap text-white/80">{profile.bio}</p> : null}
+      <div className="mt-6 flex flex-wrap gap-3">
+        <a href={`scrolls://user/${profile.username}`} className="rounded-full bg-scrolls-blue px-5 py-3 text-sm font-bold">Open in Scrolls</a>
+        <AppCTA />
+      </div>
+    </section>
+  );
+}

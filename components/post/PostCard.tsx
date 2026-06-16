@@ -1,0 +1,31 @@
+import Link from "next/link";
+import { Avatar } from "@/components/Avatar";
+import { MediaRenderer } from "@/components/media/MediaRenderer";
+import type { ScrollsPost } from "@/lib/types/scrolls";
+
+export function PostCard({ post }: { post: ScrollsPost }) {
+  const author = post.author ?? post.user;
+  const displayName = author?.displayName ?? author?.display_name ?? author?.username ?? "Scrolls user";
+  const username = author?.username ?? "user";
+  return (
+    <article className="rounded-[2rem] border border-white/10 bg-scrolls-panel/95 p-4 shadow-glow">
+      <Link href={`/user/${encodeURIComponent(username)}`} className="mb-4 flex items-center gap-3">
+        <Avatar user={author} size={44} />
+        <div className="min-w-0">
+          <div className="truncate font-bold">{displayName}</div>
+          <div className="truncate text-sm text-white/55">@{username}</div>
+        </div>
+      </Link>
+      <Link href={`/scroll/${post.id}`} className="block">
+        <MediaRenderer post={post} />
+      </Link>
+      {post.caption && (
+        <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-white/85">{post.caption}</p>
+      )}
+      <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-xs text-white/45">
+        <span>{post.locationCity ?? post.location_city ?? ""}</span>
+        <Link href={`/scroll/${post.id}`} className="font-semibold text-white/75">Open scroll</Link>
+      </div>
+    </article>
+  );
+}
