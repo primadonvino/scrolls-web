@@ -8,7 +8,7 @@ export function PostCard({ post }: { post: ScrollsPost }) {
   const displayName = author?.displayName ?? author?.display_name ?? author?.username ?? "Scrolls user";
   const username = author?.username ?? "user";
   return (
-    <article className="rounded-[2rem] border border-white/10 bg-scrolls-panel/95 p-4 shadow-glow">
+    <article className="scrolls-glass rounded-[1.8rem] p-4">
       <Link href={`/user/${encodeURIComponent(username)}`} className="mb-4 flex items-center gap-3">
         <Avatar user={author} size={44} />
         <div className="min-w-0">

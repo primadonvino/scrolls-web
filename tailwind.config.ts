@@ -10,15 +10,15 @@ const config: Config = {
     extend: {
       colors: {
         scrolls: {
-          black: "#050506",
-          panel: "#1c1c1f",
-          panel2: "#26262a",
-          gold: "#c4a56a",
-          blue: "#2f8cff"
+          black: "#020203",
+          panel: "#1d1d20",
+          panel2: "#29292d",
+          gold: "#d6b36c",
+          blue: "#0a84ff"
         }
       },
       boxShadow: {
-        glow: "0 24px 80px rgba(47, 140, 255, 0.22)"
+        glow: "0 28px 90px rgba(0, 0, 0, 0.38)"
       }
     }
   },

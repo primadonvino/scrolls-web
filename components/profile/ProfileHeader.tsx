@@ -6,7 +6,7 @@ export function ProfileHeader({ profile }: { profile: ScrollsUser }) {
   const displayName = profile.displayName ?? profile.display_name ?? profile.username;
   const isGold = (profile.subscriptionPlan ?? profile.subscription_plan) === "gold";
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-scrolls-panel p-6">
+    <section className="scrolls-glass rounded-[1.8rem] p-6">
       <div className="flex items-center gap-4">
         <Avatar user={profile} size={84} />
         <div className="min-w-0">

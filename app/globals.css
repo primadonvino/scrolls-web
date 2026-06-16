@@ -4,7 +4,7 @@
 
 :root {
   color-scheme: dark;
-  background: #050506;
+  background: #020203;
 }
 
 * {
@@ -16,8 +16,8 @@ body {
   min-height: 100%;
   margin: 0;
   background:
-    radial-gradient(circle at 50% -10%, rgba(196, 165, 106, 0.18), transparent 28rem),
-    #050506;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 18rem),
+    #020203;
   color: white;
 }
 
@@ -32,4 +32,20 @@ a {
 
 .safe-shell {
   min-height: 100svh;
+}
+
+.scrolls-wordmark {
+  font-family: "Snell Roundhand", "Apple Chancery", "Brush Script MT", cursive;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 0.9;
+  text-rendering: geometricPrecision;
+}
+
+.scrolls-glass {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(29, 29, 32, 0.84);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(24px);
 }
