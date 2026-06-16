@@ -68,10 +68,21 @@ export async function fetchAuthorPosts(authorID: string, token?: string) {
   return Array.isArray(result) ? result : result.posts ?? [];
 }
 
-export async function fetchPost(postID: string, token?: string) {
+function isWrappedPostResponse(
+  value: { post?: ScrollsPost | null } | ScrollsPost
+): value is { post?: ScrollsPost | null } {
+  return "post" in value;
+}
+
+export async function fetchPost(postID: string, token?: string): Promise<ScrollsPost | null> {
   const params = new URLSearchParams({ id: postID });
-  const result = await request<{ post?: ScrollsPost } | ScrollsPost>(`/posts/by-id?${params}`, { cache: "no-store" }, token);
-  return "post" in result ? result.post ?? null : result;
+  const result = await request<{ post?: ScrollsPost | null } | ScrollsPost | null>(
+    `/posts/by-id?${params}`,
+    { cache: "no-store" },
+    token
+  );
+  if (!result) return null;
+  return isWrappedPostResponse(result) ? result.post ?? null : result;
 }
 
 export async function reportPost(postID: string, reason = "spam", token?: string) {
