@@ -97,8 +97,8 @@ function CircleRow({ circle, selfId }: { circle: ScrollsCircle; selfId?: string 
   const when = formatWhen(last?.createdAt ?? circle.createdAt);
 
   return (
-    <a
-      href="scrolls://circles"
+    <Link
+      href={`/circles/${circle.id}`}
       className="flex items-center gap-3 rounded-3xl border border-white/[0.08] bg-white/[0.03] p-3 transition hover:bg-white/[0.07]"
     >
       <div className="flex -space-x-3">
@@ -114,7 +114,7 @@ function CircleRow({ circle, selfId }: { circle: ScrollsCircle; selfId?: string 
         </p>
       </div>
       {when ? <span className="shrink-0 text-xs text-white/40">{when}</span> : null}
-    </a>
+    </Link>
   );
 }
 

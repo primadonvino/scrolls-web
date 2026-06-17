@@ -1,3 +1,4 @@
+import { normalizedAssetURL } from "@/lib/media/urls";
 import type { ScrollsCircleMessage } from "@/lib/types/scrolls";
 
 // Mirrors the iOS `CircleEncryption.decrypt` + `CirclesStore.previewText` for the
@@ -43,6 +44,59 @@ export function circlePreview(message?: ScrollsCircleMessage): CirclePreview {
   const trimmed = text.trim();
   if (trimmed.length === 0) return { kind: "encrypted" };
   return { kind: "text", text: trimmed };
+}
+
+type VoicePayload = {
+  url?: string;
+  provider?: string;
+  bucket?: string;
+  objectKey?: string;
+  durationSeconds?: number;
+  expiresAt?: string;
+};
+
+function decodeBase64(value: string): string | null {
+  try {
+    if (typeof atob === "function") return atob(value);
+    // Node / SSR fallback.
+    return Buffer.from(value, "base64").toString("utf-8");
+  } catch {
+    return null;
+  }
+}
+
+/** Parse the `[CIRCLE_VOICE_BASE64]` marker payload out of a message body. */
+function parseVoicePayload(message: ScrollsCircleMessage): VoicePayload | null {
+  const body = (readableText(message.encryptedText) ?? "").trim();
+  if (!body.startsWith(VOICE_MARKER)) return null;
+  const encoded = body.slice(VOICE_MARKER.length).trim();
+  const json = decodeBase64(encoded);
+  if (!json) return null;
+  try {
+    return JSON.parse(json) as VoicePayload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve a playable URL for a voice message. Mirrors iOS `CircleMessage.voiceURL`:
+ * prefer the stored object key, then the payload url, then the payload object key.
+ */
+export function circleVoiceURL(message: ScrollsCircleMessage): string | null {
+  if (message.voiceObjectKey && message.voiceObjectKey.trim().length > 0) {
+    return normalizedAssetURL(message.voiceObjectKey);
+  }
+  const payload = parseVoicePayload(message);
+  if (!payload) return null;
+  if (payload.url && payload.url.trim().length > 0) return payload.url;
+  if (payload.objectKey && payload.objectKey.trim().length > 0) return normalizedAssetURL(payload.objectKey);
+  return null;
+}
+
+export function circleVoiceDurationSeconds(message: ScrollsCircleMessage): number | null {
+  const payload = parseVoicePayload(message);
+  return typeof payload?.durationSeconds === "number" ? payload.durationSeconds : null;
 }
 
 /** Inbox preview line, optionally prefixed with "You: " when the viewer sent it. */
