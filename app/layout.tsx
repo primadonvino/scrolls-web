@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { PlayerProvider } from "@/components/player/PlayerProvider";
+import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import "./globals.css";
 
 const appStoreURL = process.env.NEXT_PUBLIC_SCROLLS_APP_STORE_URL ?? "https://apps.apple.com/us/app/scrolls/id6761082441";
@@ -11,6 +12,12 @@ export const metadata: Metadata = {
     template: "%s | Scrolls"
   },
   description: "Profiles, posts, music, video, and city feeds from Scrolls.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Scrolls",
+    statusBarStyle: "black-translucent"
+  },
   openGraph: {
     title: "Scrolls",
     description: "Open Scrolls profiles and posts on the web.",
@@ -25,10 +32,15 @@ export const metadata: Metadata = {
   }
 };
 
+export const viewport: Viewport = {
+  themeColor: "#020203"
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
+        <RegisterServiceWorker />
         <PlayerProvider>
           <main className="safe-shell">{children}</main>
         </PlayerProvider>
