@@ -4,7 +4,7 @@ import { Avatar } from "@/components/Avatar";
 import { BrandMark } from "@/components/BrandMark";
 import { SiteHeader } from "@/components/SiteHeader";
 import { UserBadges } from "@/components/UserBadges";
-import { fetchAuthorPosts, fetchProfile } from "@/lib/api/scrolls";
+import { fetchFeed, fetchPost, fetchProfile } from "@/lib/api/scrolls";
 import { postMediaURL } from "@/lib/media/urls";
 import { isMusicOrPodcast, strippedCaption } from "@/lib/music/markers";
 import { isArticlePost } from "@/lib/article/article";
@@ -20,16 +20,31 @@ function isPhotoPost(post: ScrollsPost): boolean {
   return Boolean(url) && !/\.mp4($|\?)/i.test(url ?? "");
 }
 
-/** Loads a real photo post from the featured profile for the landing preview. */
+/**
+ * Loads a real photo post from the featured profile for the landing preview.
+ * `/posts/by-author` needs auth, so we use anonymously-readable sources: the
+ * profile's pinned post (via /posts/by-id) and the public feed.
+ */
 async function loadFeaturedPost(): Promise<{ profile: ScrollsUser; post: ScrollsPost } | null> {
-  try {
-    const profile = await fetchProfile(FEATURE_USERNAME);
-    const posts = await fetchAuthorPosts(profile.id);
-    const post = posts.find(isPhotoPost);
-    return post ? { profile, post } : null;
-  } catch {
-    return null;
+  const profile = await fetchProfile(FEATURE_USERNAME).catch(() => null);
+
+  // 1) Pinned post — by-id is anon-readable.
+  const pinnedID = profile?.pinnedPostID ?? profile?.pinned_post_id;
+  if (pinnedID) {
+    const pinned = await fetchPost(pinnedID).catch(() => null);
+    if (pinned && isPhotoPost(pinned)) {
+      return { profile: profile ?? (pinned.author ?? pinned.user)!, post: pinned };
+    }
   }
+
+  // 2) Otherwise scan the public feed for the featured user's first photo post.
+  const feed = await fetchFeed().catch(() => ({ posts: [] as ScrollsPost[], nextCursor: null }));
+  const post = feed.posts.find((candidate) => {
+    const author = candidate.author ?? candidate.user;
+    return author?.username?.toLowerCase() === FEATURE_USERNAME && isPhotoPost(candidate);
+  });
+  if (post) return { profile: profile ?? (post.author ?? post.user)!, post };
+  return null;
 }
 
 export default async function HomePage() {

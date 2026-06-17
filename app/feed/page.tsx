@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PostCard } from "@/components/post/PostCard";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -133,13 +132,13 @@ export default function FeedPage() {
     <div>
       <SiteHeader />
       <section className="mx-auto max-w-2xl px-5 pb-16">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="mb-6 flex justify-center">
           <details className="group relative">
-            <summary className="flex cursor-pointer list-none items-center gap-2 text-4xl font-black">
+            <summary className="flex cursor-pointer list-none items-center justify-center gap-2 text-4xl font-black">
               {selectedCity ?? "Scrolls"}
               <span className="text-2xl text-white/40 transition group-open:rotate-180">⌄</span>
             </summary>
-            <div className="absolute left-0 z-30 mt-2 w-56 overflow-hidden rounded-2xl border border-white/10 bg-[#171719] p-1 shadow-glow">
+            <div className="absolute left-1/2 z-30 mt-2 w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-white/10 bg-[#171719] p-1 shadow-glow">
               <button
                 type="button"
                 onClick={() => selectCity(null)}
@@ -164,10 +163,6 @@ export default function FeedPage() {
               )}
             </div>
           </details>
-          <div className="flex gap-2">
-            <Link href="/compose" className="rounded-full bg-white px-4 py-2 text-sm font-black text-black">Create</Link>
-            <Link href="/circles" className="rounded-full border border-white/15 px-4 py-2 text-sm text-white/75">Circles</Link>
-          </div>
         </div>
         {loading ? <p className="rounded-2xl bg-white/[0.04] p-5 text-white/60">Loading feed...</p> : null}
         {error ? <p className="rounded-2xl border border-red-400/30 bg-red-500/10 p-5 text-red-200">{error}</p> : null}

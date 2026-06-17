@@ -24,6 +24,8 @@ export type ScrollsUser = {
   is_founder?: boolean;
   subscriptionPlan?: string | null;
   subscription_plan?: string | null;
+  pinnedPostID?: string | null;
+  pinned_post_id?: string | null;
   homeCity?: string | null;
   home_city?: string | null;
   websiteURL?: string | null;

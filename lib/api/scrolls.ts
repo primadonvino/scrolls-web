@@ -756,11 +756,22 @@ export async function uploadFileToR2(uploadToken: UploadToken, file: Blob): Prom
   }
   if (!headers.has("Content-Type")) headers.set("Content-Type", uploadToken.contentType);
 
-  const response = await fetch(uploadToken.uploadURL, {
-    method: "PUT",
-    headers,
-    body: file
-  });
+  let response: Response;
+  try {
+    response = await fetch(uploadToken.uploadURL, {
+      method: "PUT",
+      headers,
+      body: file
+    });
+  } catch {
+    // A rejected fetch (TypeError: "Failed to fetch") means the browser couldn't
+    // complete the cross-origin PUT — almost always the R2 bucket's CORS policy
+    // not allowing PUT from this web origin.
+    throw new Error(
+      "Couldn't upload the media: the storage bucket blocked the request (CORS). " +
+        "The R2 bucket needs to allow PUT uploads from scrolls.adastra.love."
+    );
+  }
   if (!response.ok) {
     throw new Error(`Upload failed (${response.status}). The media bucket may not allow web uploads yet.`);
   }
