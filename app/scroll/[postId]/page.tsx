@@ -5,6 +5,7 @@ import { PostCard } from "@/components/post/PostCard";
 import { SiteHeader } from "@/components/SiteHeader";
 import { fetchPost } from "@/lib/api/scrolls";
 import { postCoverURL, postMediaURL } from "@/lib/media/urls";
+import { parseMusicPost, strippedCaption } from "@/lib/music/markers";
 import type { ScrollsPost } from "@/lib/types/scrolls";
 
 type Params = { params: Promise<{ postId: string }> };
@@ -16,7 +17,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     const author = post?.author ?? post?.user;
     const displayName = author?.displayName ?? author?.display_name ?? author?.username ?? "Scrolls";
     const username = author?.username ? `@${author.username}` : "Scrolls";
-    const caption = post?.caption?.trim();
+    const music = parseMusicPost(post?.caption);
+    const caption = music.isMusic || music.isPodcast
+      ? [music.title, music.tracks.length ? `${music.tracks.length} tracks` : null]
+          .filter(Boolean)
+          .join(" · ")
+      : strippedCaption(post?.caption ?? undefined)?.trim();
     const description = caption || `View this scroll from ${username}.`;
     const image = post ? postCoverURL(post) ?? postMediaURL(post) ?? undefined : undefined;
     return {

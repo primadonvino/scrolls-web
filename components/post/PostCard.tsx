@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { MediaRenderer } from "@/components/media/MediaRenderer";
+import { MusicCard } from "@/components/post/MusicCard";
 import { PostActions } from "@/components/post/PostActions";
+import { isMusicOrPodcast, strippedCaption } from "@/lib/music/markers";
 import type { ScrollsPost } from "@/lib/types/scrolls";
 
 export function PostCard({
@@ -20,6 +22,8 @@ export function PostCard({
   const displayName = author?.displayName ?? author?.display_name ?? author?.username ?? "Scrolls user";
   const username = author?.username ?? "user";
   const [caption, setCaption] = useState(post.caption ?? "");
+  const isMusic = isMusicOrPodcast(post);
+  const displayCaption = strippedCaption(caption);
 
   return (
     <article className="scrolls-glass rounded-[1.8rem] p-4">
@@ -30,11 +34,15 @@ export function PostCard({
           <div className="truncate text-sm text-white/55">@{username}</div>
         </div>
       </Link>
-      <Link href={`/scroll/${post.id}`} className="block">
-        <MediaRenderer post={post} />
-      </Link>
-      {caption ? (
-        <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-white/85">{caption}</p>
+      {isMusic ? (
+        <MusicCard post={post} />
+      ) : (
+        <Link href={`/scroll/${post.id}`} className="block">
+          <MediaRenderer post={post} />
+        </Link>
+      )}
+      {!isMusic && displayCaption ? (
+        <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-white/85">{displayCaption}</p>
       ) : null}
       <PostActions
         post={post}
