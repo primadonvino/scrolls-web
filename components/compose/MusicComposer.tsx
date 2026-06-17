@@ -1,9 +1,21 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent } from "react";
-import { createMusicPost, type MusicTrackUpload } from "@/lib/api/scrolls";
+import {
+  createMusicPost,
+  updateMusicPost,
+  type MusicTrackEdit,
+  type MusicTrackUpload
+} from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
-import { MUSIC_GENRES, RELEASE_TYPE_OPTIONS, type MusicReleaseType } from "@/lib/music/markers";
+import { postCoverURL } from "@/lib/media/urls";
+import {
+  MUSIC_GENRES,
+  parseMusicPost,
+  RELEASE_TYPE_OPTIONS,
+  type MusicReleaseType
+} from "@/lib/music/markers";
+import type { ScrollsPost } from "@/lib/types/scrolls";
 
 const COVER_TYPES = ["image/jpeg", "image/png"];
 const AUDIO_TYPES = ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a", "audio/m4a", "audio/aac", "audio/wav", "audio/x-wav"];
@@ -13,7 +25,11 @@ const MAX_CAPTION = 220;
 
 type TrackDraft = {
   key: string;
-  file: File;
+  /** Stable id for an existing track; null until the post is published. */
+  id: string | null;
+  /** New audio to upload; null when keeping an existing track's audio. */
+  file: File | null;
+  existingAudioURL: string | null;
   title: string;
   isExplicit: boolean;
   lyrics: string;
@@ -40,20 +56,39 @@ function readAudioDuration(file: File): Promise<number | null> {
 }
 
 /**
- * Composer for publishing a music post (single / EP / album). Uploads cover art
- * + per-track audio through the existing R2 upload-token flow and assembles the
- * iOS-compatible `[MUSIC] …` caption markers — no new backend support needed.
+ * Composer for publishing or editing a music post (single / EP / album).
+ * Create mode uploads cover art + per-track audio through the existing R2
+ * upload-token flow; edit mode (`editPost`) prefills from the post's caption
+ * markers, keeps existing track audio, and saves via the /posts/caption PATCH.
+ * Assembles the iOS-compatible `[MUSIC] …` caption — no new backend support.
  */
-export function MusicComposer({ onPosted }: { onPosted: () => void }) {
+export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; editPost?: ScrollsPost }) {
+  const isEdit = Boolean(editPost);
+  const initial = editPost ? parseMusicPost(editPost.caption) : null;
+  const existingCoverURL = editPost ? postCoverURL(editPost) : null;
+
   const [cover, setCover] = useState<File | null>(null);
   const [coverURL, setCoverURL] = useState<string | null>(null);
-  const [releaseType, setReleaseType] = useState<MusicReleaseType>("album");
-  const [tracks, setTracks] = useState<TrackDraft[]>([]);
-  const [caption, setCaption] = useState("");
-  const [releaseDate, setReleaseDate] = useState("");
-  const [recordLabel, setRecordLabel] = useState("");
-  const [genre, setGenre] = useState("");
-  const [linerNotes, setLinerNotes] = useState("");
+  const [releaseType, setReleaseType] = useState<MusicReleaseType>(initial?.releaseType ?? "album");
+  const [tracks, setTracks] = useState<TrackDraft[]>(() =>
+    initial
+      ? initial.tracks.map((track) => ({
+          key: crypto.randomUUID(),
+          id: track.id || null,
+          file: null,
+          existingAudioURL: track.audioURL ?? null,
+          title: track.title,
+          isExplicit: track.isExplicit,
+          lyrics: track.lyrics ?? "",
+          durationSeconds: track.durationSeconds ?? null
+        }))
+      : []
+  );
+  const [caption, setCaption] = useState(initial?.title ?? "");
+  const [releaseDate, setReleaseDate] = useState(initial?.releaseDate ?? "");
+  const [recordLabel, setRecordLabel] = useState(initial?.recordLabel ?? "");
+  const [genre, setGenre] = useState(initial?.genre ?? "");
+  const [linerNotes, setLinerNotes] = useState(initial?.linerNotes ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,7 +134,9 @@ export function MusicComposer({ onPosted }: { onPosted: () => void }) {
     const drafts = await Promise.all(
       valid.map(async (file) => ({
         key: crypto.randomUUID(),
+        id: null,
         file,
+        existingAudioURL: null,
         title: file.name.replace(/\.[^.]+$/, ""),
         isExplicit: false,
         lyrics: "",
@@ -128,11 +165,12 @@ export function MusicComposer({ onPosted }: { onPosted: () => void }) {
     });
   }
 
-  const canPost = !busy && Boolean(cover) && tracks.length > 0 && tracks.every((t) => t.title.trim().length > 0);
+  const hasCover = isEdit ? Boolean(existingCoverURL) : Boolean(cover);
+  const canPost = !busy && hasCover && tracks.length > 0 && tracks.every((t) => t.title.trim().length > 0);
 
   async function publish() {
-    if (!cover || !tracks.length) {
-      setError("Add cover art and at least one track.");
+    if (!tracks.length) {
+      setError("Add at least one track.");
       return;
     }
     const session = await readFreshSession();
@@ -143,30 +181,67 @@ export function MusicComposer({ onPosted }: { onPosted: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const uploads: MusicTrackUpload[] = tracks.map((track) => ({
-        file: track.file,
-        title: track.title,
-        isExplicit: track.isExplicit,
-        lyrics: track.lyrics,
-        durationSeconds: track.durationSeconds
-      }));
-      await createMusicPost(
-        {
-          authorID: session.user.id,
-          caption: caption.trim() || null,
-          releaseType,
-          releaseDate: releaseDate || null,
-          recordLabel: recordLabel.trim() || null,
-          genre: genre || null,
-          linerNotes: linerNotes.trim() || null,
-          cover,
-          tracks: uploads
-        },
-        session.token
-      );
+      if (isEdit && editPost) {
+        const editTracks: MusicTrackEdit[] = tracks.map((track) => ({
+          id: track.id,
+          title: track.title,
+          isExplicit: track.isExplicit,
+          lyrics: track.lyrics,
+          durationSeconds: track.durationSeconds,
+          file: track.file,
+          existingAudioURL: track.existingAudioURL
+        }));
+        await updateMusicPost(
+          {
+            postID: editPost.id,
+            authorID: session.user.id,
+            caption: caption.trim() || null,
+            releaseType,
+            releaseDate: releaseDate || null,
+            recordLabel: recordLabel.trim() || null,
+            genre: genre || null,
+            linerNotes: linerNotes.trim() || null,
+            tracks: editTracks
+          },
+          session.token
+        );
+      } else {
+        if (!cover) {
+          setError("Add cover art.");
+          setBusy(false);
+          return;
+        }
+        const newTracks = tracks.filter((track) => track.file);
+        if (newTracks.length !== tracks.length) {
+          setError("Every track needs an audio file.");
+          setBusy(false);
+          return;
+        }
+        const uploads: MusicTrackUpload[] = newTracks.map((track) => ({
+          file: track.file as File,
+          title: track.title,
+          isExplicit: track.isExplicit,
+          lyrics: track.lyrics,
+          durationSeconds: track.durationSeconds
+        }));
+        await createMusicPost(
+          {
+            authorID: session.user.id,
+            caption: caption.trim() || null,
+            releaseType,
+            releaseDate: releaseDate || null,
+            recordLabel: recordLabel.trim() || null,
+            genre: genre || null,
+            linerNotes: linerNotes.trim() || null,
+            cover,
+            tracks: uploads
+          },
+          session.token
+        );
+      }
       onPosted();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not publish your release.");
+      setError(err instanceof Error ? err.message : "Could not save your release.");
     } finally {
       setBusy(false);
     }
@@ -177,19 +252,33 @@ export function MusicComposer({ onPosted }: { onPosted: () => void }) {
       {/* Cover art */}
       <div>
         <p className="mb-2 text-sm font-bold text-white/70">Cover art</p>
-        <input ref={coverInputRef} type="file" accept={COVER_TYPES.join(",")} onChange={pickCover} className="hidden" />
-        <button
-          type="button"
-          onClick={() => coverInputRef.current?.click()}
-          className="grid aspect-square w-40 place-items-center overflow-hidden rounded-2xl border border-dashed border-white/20 bg-black/40 text-xs font-bold text-white/60 transition hover:bg-black/60"
-        >
-          {coverURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverURL} alt="Cover art" className="h-full w-full object-cover" />
-          ) : (
-            "Choose cover"
-          )}
-        </button>
+        {isEdit ? (
+          <div className="w-40">
+            <div className="aspect-square w-40 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+              {existingCoverURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={existingCoverURL} alt="Cover art" className="h-full w-full object-cover" />
+              ) : null}
+            </div>
+            <p className="mt-1 text-xs text-white/40">Cover stays the same.</p>
+          </div>
+        ) : (
+          <>
+            <input ref={coverInputRef} type="file" accept={COVER_TYPES.join(",")} onChange={pickCover} className="hidden" />
+            <button
+              type="button"
+              onClick={() => coverInputRef.current?.click()}
+              className="grid aspect-square w-40 place-items-center overflow-hidden rounded-2xl border border-dashed border-white/20 bg-black/40 text-xs font-bold text-white/60 transition hover:bg-black/60"
+            >
+              {coverURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={coverURL} alt="Cover art" className="h-full w-full object-cover" />
+              ) : (
+                "Choose cover"
+              )}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Release type */}
@@ -293,6 +382,7 @@ export function MusicComposer({ onPosted }: { onPosted: () => void }) {
                       {Math.round(track.durationSeconds % 60).toString().padStart(2, "0")}
                     </span>
                   ) : null}
+                  {track.file ? <span className="text-xs text-scrolls-gold/80">new</span> : null}
                 </div>
                 <textarea
                   value={track.lyrics}
@@ -365,7 +455,7 @@ export function MusicComposer({ onPosted }: { onPosted: () => void }) {
           disabled={!canPost}
           className="rounded-full bg-scrolls-blue px-6 py-3 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {busy ? "Publishing..." : "Publish release"}
+          {busy ? "Saving..." : isEdit ? "Save changes" : "Publish release"}
         </button>
       </div>
     </div>

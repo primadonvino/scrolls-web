@@ -331,6 +331,79 @@ export async function createMusicPost(
   }, token);
 }
 
+export type MusicTrackEdit = {
+  /** Stable id of an existing track; omitted/null for newly added tracks. */
+  id?: string | null;
+  title: string;
+  isExplicit: boolean;
+  lyrics?: string | null;
+  durationSeconds?: number | null;
+  /** New audio file to upload (added or replacement track). */
+  file?: File | null;
+  /** Existing track's audio URL, kept when no new file is supplied. */
+  existingAudioURL?: string | null;
+};
+
+/**
+ * Edits an existing music post. Uploads any newly added track audio to R2,
+ * preserves existing tracks' URLs, reassembles the `[MUSIC] …` caption, and
+ * saves it through the already-wired /posts/caption PATCH. Cover art is left
+ * unchanged (no cover-replacement endpoint is wired on web yet).
+ */
+export async function updateMusicPost(
+  params: {
+    postID: string;
+    authorID: string;
+    caption?: string | null;
+    releaseType?: MusicReleaseType | null;
+    releaseDate?: string | null;
+    recordLabel?: string | null;
+    genre?: string | null;
+    linerNotes?: string | null;
+    tracks: MusicTrackEdit[];
+  },
+  token: string
+): Promise<{ ok: boolean }> {
+  if (!params.tracks.length) throw new Error("A release needs at least one track.");
+  const owner = params.authorID.toLowerCase();
+
+  const trackMeta: MusicTrack[] = [];
+  for (const track of params.tracks) {
+    let audioURL = track.existingAudioURL ?? null;
+    if (track.file) {
+      const contentType = track.file.type || "audio/mpeg";
+      const ext = AUDIO_EXT[contentType] ?? "m4a";
+      const trackToken = await requestUploadToken(token, {
+        contentType,
+        objectKey: `music/${owner}/${params.postID}/tracks/${crypto.randomUUID()}.${ext}`,
+        maxBytes: 60 * 1024 * 1024
+      });
+      audioURL = await uploadFileToR2(trackToken, track.file);
+    }
+    trackMeta.push({
+      id: track.id || crypto.randomUUID(),
+      title: track.title.trim() || "Untitled",
+      audioURL,
+      durationSeconds: track.durationSeconds ?? null,
+      lyrics: track.lyrics?.trim() || null,
+      isExplicit: track.isExplicit
+    });
+  }
+
+  const caption = buildMusicCaption({
+    isPodcast: false,
+    caption: params.caption ?? null,
+    releaseType: params.releaseType ?? null,
+    tracks: trackMeta,
+    releaseDate: params.releaseDate ?? null,
+    recordLabel: params.recordLabel ?? null,
+    genre: params.genre ?? null,
+    linerNotes: params.linerNotes ?? null
+  });
+
+  return updateCaption(params.postID, params.authorID, caption, token);
+}
+
 /** Edit the caption (and optionally location) of an owned post. */
 export async function updateCaption(
   postID: string,

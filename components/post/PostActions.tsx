@@ -18,6 +18,7 @@ import {
   updateCaption
 } from "@/lib/api/scrolls";
 import { readFreshSession, readSession } from "@/lib/auth/session";
+import { isMusicOrPodcast } from "@/lib/music/markers";
 import type { AuthSession, ScrollsComment, ScrollsPost } from "@/lib/types/scrolls";
 
 type Props = {
@@ -61,6 +62,7 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
   const authorID = author?.id;
   const isSignedIn = Boolean(session?.token && session.user?.id);
   const isOwner = Boolean(authorID && session?.user?.id === authorID);
+  const isMusic = isMusicOrPodcast(post);
 
   async function pinToProfile() {
     const freshSession = await readFreshSession();
@@ -356,16 +358,25 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
             {isOwner ? (
               <div className="mt-3 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/42">Your post</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCaptionDraft(post.caption ?? "");
-                    setEditingCaption((value) => !value);
-                  }}
-                  className="mt-2 w-full rounded-full border border-white/12 px-4 py-2 text-sm font-bold text-white/85"
-                >
-                  {editingCaption ? "Cancel edit" : "Edit caption"}
-                </button>
+                {isMusic ? (
+                  <Link
+                    href={`/scroll/${post.id}/edit`}
+                    className="mt-2 block w-full rounded-full border border-white/12 px-4 py-2 text-center text-sm font-bold text-white/85"
+                  >
+                    Edit release
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCaptionDraft(post.caption ?? "");
+                      setEditingCaption((value) => !value);
+                    }}
+                    className="mt-2 w-full rounded-full border border-white/12 px-4 py-2 text-sm font-bold text-white/85"
+                  >
+                    {editingCaption ? "Cancel edit" : "Edit caption"}
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={busy === "pin"}
