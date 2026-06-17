@@ -7,6 +7,7 @@ import { MediaRenderer } from "@/components/media/MediaRenderer";
 import { ArticleCard } from "@/components/post/ArticleCard";
 import { MusicCard } from "@/components/post/MusicCard";
 import { PostActions } from "@/components/post/PostActions";
+import { UserBadges } from "@/components/UserBadges";
 import { isArticlePost } from "@/lib/article/article";
 import { isMusicOrPodcast, strippedCaption } from "@/lib/music/markers";
 import type { ScrollsPost } from "@/lib/types/scrolls";
@@ -29,11 +30,14 @@ export function PostCard({
   const displayCaption = strippedCaption(caption);
 
   return (
-    <article className="scrolls-glass rounded-[1.8rem] p-4">
+    <article className="scrolls-glass relative rounded-[1.8rem] p-4 has-[details[open]]:z-30">
       <Link href={`/user/${encodeURIComponent(username)}`} className="mb-4 flex items-center gap-3">
         <Avatar user={author} size={44} />
         <div className="min-w-0">
-          <div className="truncate font-bold">{displayName}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="truncate font-bold">{displayName}</span>
+            <UserBadges user={author} size={15} />
+          </div>
           <div className="truncate text-sm text-white/55">@{username}</div>
         </div>
       </Link>

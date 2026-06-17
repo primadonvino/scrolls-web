@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { PostCard } from "@/components/post/PostCard";
 import { SiteHeader } from "@/components/SiteHeader";
+import { UserBadges } from "@/components/UserBadges";
 import { searchPosts, searchUsers } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
 import type { ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
@@ -108,16 +109,11 @@ export default function SearchPage() {
               >
                 <Avatar user={user} size={46} />
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <p className="truncate font-bold text-white">
                       {user.displayName ?? user.display_name ?? user.username}
                     </p>
-                    {(user.isFounder ?? user.is_founder) ? (
-                      <span className="rounded-full bg-scrolls-gold px-2 py-0.5 text-[10px] font-bold text-black">Founder</span>
-                    ) : null}
-                    {(user.isVerified ?? user.is_verified) ? (
-                      <span className="rounded-full bg-scrolls-blue px-2 py-0.5 text-[10px] font-bold">Verified</span>
-                    ) : null}
+                    <UserBadges user={user} size={15} />
                   </div>
                   <p className="truncate text-sm text-white/50">@{user.username}</p>
                 </div>
