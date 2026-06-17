@@ -21,7 +21,11 @@ export function PostCard({
   onBlocked?: (userID: string) => void;
   onDeleted?: (postID: string) => void;
 }) {
-  const author = post.author ?? post.user;
+  // For a rescroll, post.author is the rescroller; the real author of the
+  // content is rescrollOrigin.user (matches iOS `rescrollOrigin?.user ?? user`).
+  const rescroll = post.rescrollOrigin ?? post.rescroll_origin ?? null;
+  const rescroller = rescroll ? post.author ?? post.user : null;
+  const author = rescroll?.user ?? post.author ?? post.user;
   const displayName = author?.displayName ?? author?.display_name ?? author?.username ?? "Scrolls user";
   const username = author?.username ?? "user";
   const [caption, setCaption] = useState(post.caption ?? "");
@@ -31,6 +35,15 @@ export function PostCard({
 
   return (
     <article className="scrolls-glass relative rounded-[1.8rem] p-4 has-[details[open]]:z-30">
+      {rescroller ? (
+        <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-white/45">
+          <span aria-hidden>↻</span>
+          <span>Rescrolled by</span>
+          <Link href={`/user/${encodeURIComponent(rescroller.username ?? "user")}`} className="hover:underline">
+            @{rescroller.username ?? "user"}
+          </Link>
+        </div>
+      ) : null}
       <Link href={`/user/${encodeURIComponent(username)}`} className="mb-4 flex items-center gap-3">
         <Avatar user={author} size={44} />
         <div className="min-w-0">

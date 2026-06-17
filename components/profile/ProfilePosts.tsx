@@ -83,15 +83,7 @@ export function ProfilePosts({
       ) : (
         <div className="space-y-6">
           {visible.map((post) => (
-            <div key={post.id}>
-              {isRescroll(post) ? (
-                <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-white/45">
-                  ↻ Rescrolled
-                  {post.rescrollOrigin?.user?.username ? ` · @${post.rescrollOrigin.user.username}` : ""}
-                </p>
-              ) : null}
-              <PostCard post={{ ...post, author: post.author ?? profile }} />
-            </div>
+            <PostCard key={post.id} post={{ ...post, author: post.author ?? profile }} />
           ))}
         </div>
       )}
