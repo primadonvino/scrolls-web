@@ -22,6 +22,41 @@ export type ScrollsUser = {
   subscription_plan?: string | null;
   homeCity?: string | null;
   home_city?: string | null;
+  websiteURL?: string | null;
+  website_url?: string | null;
+  venmoURL?: string | null;
+  venmo_url?: string | null;
+  cashAppURL?: string | null;
+  cashappURL?: string | null;
+  cashapp_url?: string | null;
+  updatedAt?: string | null;
+  updated_at?: string | null;
+  writeVersion?: string | null;
+};
+
+export type UploadToken = {
+  provider: string;
+  bucket: string;
+  objectKey: string;
+  contentType: string;
+  uploadURL: string;
+  publicURL: string;
+  maxBytes?: number;
+  expiresAt?: string;
+  requiredHeaders?: Record<string, string>;
+};
+
+export type ProfileUpdate = {
+  displayName?: string;
+  bio?: string;
+  websiteURL?: string | null;
+  homeCity?: string | null;
+  venmoURL?: string | null;
+  cashAppURL?: string | null;
+  avatarProvider?: string;
+  avatarBucket?: string;
+  avatarObjectKey?: string;
+  expectedWriteVersion?: string;
 };
 
 export type ScrollsPost = {
@@ -83,4 +118,15 @@ export type FeedResponse = {
   items?: ScrollsPost[];
   nextCursor?: string | null;
   next_cursor?: string | null;
+};
+
+export type SearchPostsResponse = {
+  relevant?: ScrollsPost[];
+  recent?: ScrollsPost[];
+};
+
+export type CreatePostResponse = {
+  ok: boolean;
+  id?: UUID;
+  idempotent?: boolean;
 };

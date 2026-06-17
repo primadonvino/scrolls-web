@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppCTA } from "@/components/AppCTA";
+import { AppSmartBanner } from "@/components/AppSmartBanner";
 import { PostCard } from "@/components/post/PostCard";
 import { SiteHeader } from "@/components/SiteHeader";
 import { fetchPost } from "@/lib/api/scrolls";
@@ -59,6 +60,7 @@ export default async function ScrollPage({ params }: Params) {
   return (
     <div>
       <SiteHeader />
+      <AppSmartBanner deepLink={`scrolls://scroll/${postId}`} label="Open this scroll in the app" />
       <section className="mx-auto grid min-h-[70svh] max-w-2xl gap-6 px-5 py-10">
         {post ? (
           <>

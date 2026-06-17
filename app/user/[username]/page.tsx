@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { AppSmartBanner } from "@/components/AppSmartBanner";
 import { PostCard } from "@/components/post/PostCard";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -40,6 +41,7 @@ export default async function ProfilePage({ params }: Params) {
   return (
     <div>
       <SiteHeader />
+      <AppSmartBanner deepLink={`scrolls://user/${profile.username}`} label={`Open @${profile.username} in the app`} />
       <section className="mx-auto max-w-3xl px-5 pb-16">
         <ProfileHeader profile={profile} />
         <h2 className="mb-4 mt-8 text-xl font-black">Scrolls</h2>

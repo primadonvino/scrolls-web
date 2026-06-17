@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { blockUser, followUser } from "@/lib/api/scrolls";
+import { blockUser, followUser, reportContent } from "@/lib/api/scrolls";
 import { readFreshSession, readSession } from "@/lib/auth/session";
 import type { AuthSession, ScrollsUser } from "@/lib/types/scrolls";
 
@@ -45,6 +45,22 @@ export function ProfileActions({ profile }: { profile: ScrollsUser }) {
     }
   }
 
+  async function report() {
+    const freshSession = await readFreshSession();
+    setSession(freshSession);
+    if (!freshSession?.token || isSelf) return;
+    setBusy("report");
+    setStatus(null);
+    try {
+      await reportContent("profile", profile.id, "impersonation", freshSession.token, profile.id);
+      setStatus("Report sent. Thank you.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not report this profile.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="mt-6">
       <div className="flex flex-wrap gap-3">
@@ -73,6 +89,14 @@ export function ProfileActions({ profile }: { profile: ScrollsUser }) {
               className="rounded-full border border-red-400/30 px-5 py-3 text-sm font-bold text-red-200 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {busy === "block" ? "Blocking..." : "Block"}
+            </button>
+            <button
+              type="button"
+              disabled={busy === "report"}
+              onClick={report}
+              className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-white/80 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {busy === "report" ? "Reporting..." : "Report"}
             </button>
           </>
         ) : null}
