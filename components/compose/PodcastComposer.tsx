@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent } from "react";
+import { UploadProgressBar } from "@/components/compose/UploadProgressBar";
 import { createPodcastPost } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
 
@@ -21,6 +22,7 @@ export function PodcastComposer({ onPosted }: { onPosted: () => void }) {
   const [audio, setAudio] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -74,10 +76,12 @@ export function PodcastComposer({ onPosted }: { onPosted: () => void }) {
     }
     setBusy(true);
     setError(null);
+    setProgress(0);
     try {
       await createPodcastPost(
         { authorID: session.user.id, caption: title.trim() || null, cover, audio },
-        session.token
+        session.token,
+        setProgress
       );
       onPosted();
     } catch (err) {
@@ -128,6 +132,7 @@ export function PodcastComposer({ onPosted }: { onPosted: () => void }) {
         </button>
       </div>
 
+      {busy ? <UploadProgressBar value={progress} /> : null}
       {error ? <p className="text-sm text-red-200">{error}</p> : null}
 
       <div className="flex items-center justify-end">

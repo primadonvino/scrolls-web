@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent } from "react";
+import { UploadProgressBar } from "@/components/compose/UploadProgressBar";
 import { createArticlePost, type ArticleBlockInput } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
 
@@ -33,6 +34,7 @@ export function ArticleComposer({ onPosted }: { onPosted: () => void }) {
   const [headline, setHeadline] = useState("");
   const [blocks, setBlocks] = useState<BlockDraft[]>(() => [newBlock("paragraph")]);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -101,10 +103,12 @@ export function ArticleComposer({ onPosted }: { onPosted: () => void }) {
     }
     setBusy(true);
     setError(null);
+    setProgress(0);
     try {
       await createArticlePost(
         { authorID: session.user.id, headline: headline.trim(), blocks: payloadBlocks, cover },
-        session.token
+        session.token,
+        setProgress
       );
       onPosted();
     } catch (err) {
@@ -236,6 +240,7 @@ export function ArticleComposer({ onPosted }: { onPosted: () => void }) {
         </div>
       </div>
 
+      {busy ? <UploadProgressBar value={progress} /> : null}
       {error ? <p className="text-sm text-red-200">{error}</p> : null}
 
       <div className="flex items-center justify-end">

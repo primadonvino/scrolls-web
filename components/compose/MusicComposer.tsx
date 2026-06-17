@@ -7,6 +7,7 @@ import {
   type MusicTrackEdit,
   type MusicTrackUpload
 } from "@/lib/api/scrolls";
+import { UploadProgressBar } from "@/components/compose/UploadProgressBar";
 import { readFreshSession } from "@/lib/auth/session";
 import { postCoverURL } from "@/lib/media/urls";
 import {
@@ -90,6 +91,7 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
   const [genre, setGenre] = useState(initial?.genre ?? "");
   const [linerNotes, setLinerNotes] = useState(initial?.linerNotes ?? "");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -180,6 +182,7 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
     }
     setBusy(true);
     setError(null);
+    setProgress(0);
     try {
       if (isEdit && editPost) {
         const editTracks: MusicTrackEdit[] = tracks.map((track) => ({
@@ -236,7 +239,8 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
             cover,
             tracks: uploads
           },
-          session.token
+          session.token,
+          setProgress
         );
       }
       onPosted();
@@ -446,6 +450,7 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
         />
       </div>
 
+      {busy && !isEdit ? <UploadProgressBar value={progress} /> : null}
       {error ? <p className="text-sm text-red-200">{error}</p> : null}
 
       <div className="flex items-center justify-end">

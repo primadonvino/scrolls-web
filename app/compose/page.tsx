@@ -6,6 +6,7 @@ import { Avatar } from "@/components/Avatar";
 import { ArticleComposer } from "@/components/compose/ArticleComposer";
 import { MusicComposer } from "@/components/compose/MusicComposer";
 import { PodcastComposer } from "@/components/compose/PodcastComposer";
+import { UploadProgressBar } from "@/components/compose/UploadProgressBar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { createMediaPost, createTextPost, uploadPostMedia } from "@/lib/api/scrolls";
 import { readFreshSession, readSession } from "@/lib/auth/session";
@@ -30,6 +31,7 @@ export default function ComposePage() {
   const [previewURL, setPreviewURL] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -104,6 +106,7 @@ export default function ComposePage() {
     }
     setBusy(true);
     setError(null);
+    setProgress(0);
     try {
       if (mode === "text") {
         const trimmed = body.trim();
@@ -114,7 +117,7 @@ export default function ComposePage() {
           setError("Choose a file to post.");
           return;
         }
-        const uploaded = await uploadPostMedia(fresh.token, fresh.user.id, file);
+        const uploaded = await uploadPostMedia(fresh.token, fresh.user.id, file, setProgress);
         await createMediaPost(
           {
             authorID: fresh.user.id,
@@ -248,6 +251,7 @@ export default function ComposePage() {
                 {busy ? (mode === "text" ? "Posting..." : "Uploading...") : "Post scroll"}
               </button>
             </div>
+            {busy && (mode === "photo" || mode === "video") ? <UploadProgressBar value={progress} /> : null}
             {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
             </form>
             )}

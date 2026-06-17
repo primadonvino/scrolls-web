@@ -206,18 +206,28 @@ const POST_MEDIA_EXT: Record<string, string> = {
   "video/quicktime": "mov"
 };
 
+/**
+ * Builds per-file progress callbacks that aggregate into one overall fraction
+ * across a multi-file upload (file `index` of `total`).
+ */
+function stepProgress(total: number, onProgress?: UploadProgress) {
+  return (index: number): UploadProgress | undefined =>
+    onProgress ? (fraction) => onProgress((index + fraction) / total) : undefined;
+}
+
 /** Upload a photo or video for a post, returning the R2 reference fields. */
 export async function uploadPostMedia(
   token: string,
   userID: string,
-  file: File
+  file: File,
+  onProgress?: UploadProgress
 ): Promise<{ provider: string; bucket: string; objectKey: string; publicURL: string; contentType: string }> {
   const contentType = file.type || "application/octet-stream";
   const ext = POST_MEDIA_EXT[contentType] ?? "bin";
   const objectKey = `posts/${userID}/${crypto.randomUUID()}.${ext}`;
   const maxBytes = contentType.startsWith("video/") ? 500 * 1024 * 1024 : 25 * 1024 * 1024;
   const uploadToken = await requestUploadToken(token, { contentType, objectKey, maxBytes });
-  const publicURL = await uploadFileToR2(uploadToken, file);
+  const publicURL = await uploadFileToR2(uploadToken, file, onProgress);
   return {
     provider: uploadToken.provider,
     bucket: uploadToken.bucket,
@@ -299,11 +309,13 @@ export async function createMusicPost(
     cover: File;
     tracks: MusicTrackUpload[];
   },
-  token: string
+  token: string,
+  onProgress?: UploadProgress
 ): Promise<CreatePostResponse> {
   if (!params.tracks.length) throw new Error("Add at least one audio track.");
   const postID = crypto.randomUUID();
   const owner = params.authorID.toLowerCase();
+  const step = stepProgress(1 + params.tracks.length, onProgress);
 
   // Cover art → R2.
   const coverType = params.cover.type || "image/jpeg";
@@ -313,7 +325,7 @@ export async function createMusicPost(
     objectKey: `music/${owner}/${postID}/cover/${postID}.${coverExt}`,
     maxBytes: 25 * 1024 * 1024
   });
-  await uploadFileToR2(coverToken, params.cover);
+  await uploadFileToR2(coverToken, params.cover, step(0));
 
   // Each track's audio → R2, collecting public URLs for the caption payload.
   const trackMeta: MusicTrack[] = [];
@@ -326,7 +338,7 @@ export async function createMusicPost(
       objectKey: `music/${owner}/${postID}/tracks/${postID}-${index}.${ext}`,
       maxBytes: 60 * 1024 * 1024
     });
-    const publicURL = await uploadFileToR2(trackToken, track.file);
+    const publicURL = await uploadFileToR2(trackToken, track.file, step(1 + index));
     trackMeta.push({
       id: crypto.randomUUID(),
       title: track.title.trim() || `Track ${index + 1}`,
@@ -378,10 +390,12 @@ export async function createMusicPost(
  */
 export async function createPodcastPost(
   params: { authorID: string; caption?: string | null; cover: File; audio: File },
-  token: string
+  token: string,
+  onProgress?: UploadProgress
 ): Promise<CreatePostResponse> {
   const postID = crypto.randomUUID();
   const owner = params.authorID.toLowerCase();
+  const step = stepProgress(2, onProgress);
 
   const coverType = params.cover.type || "image/jpeg";
   const coverExt = coverType.includes("png") ? "png" : "jpg";
@@ -390,7 +404,7 @@ export async function createPodcastPost(
     objectKey: `posts/${owner}/${postID}/cover/${postID}.${coverExt}`,
     maxBytes: 25 * 1024 * 1024
   });
-  await uploadFileToR2(coverToken, params.cover);
+  await uploadFileToR2(coverToken, params.cover, step(0));
 
   const audioType = params.audio.type || "audio/mpeg";
   const audioExt = AUDIO_EXT[audioType] ?? "m4a";
@@ -399,7 +413,7 @@ export async function createPodcastPost(
     objectKey: `posts/${owner}/${postID}/asset/${postID}.${audioExt}`,
     maxBytes: 200 * 1024 * 1024
   });
-  await uploadFileToR2(assetToken, params.audio);
+  await uploadFileToR2(assetToken, params.audio, step(1));
 
   const caption = buildMusicCaption({ isPodcast: true, caption: params.caption ?? null, tracks: [] });
 
@@ -435,7 +449,8 @@ export type ArticleBlockInput = { id: string; kind: "paragraph" | "subheadline" 
  */
 export async function createArticlePost(
   params: { authorID: string; headline: string; blocks: ArticleBlockInput[]; cover: File },
-  token: string
+  token: string,
+  onProgress?: UploadProgress
 ): Promise<CreatePostResponse> {
   const headline = params.headline.trim();
   if (!headline) throw new Error("Articles need a headline.");
@@ -454,7 +469,7 @@ export async function createArticlePost(
     objectKey: `posts/${owner}/${postID}/cover/${postID}.${coverExt}`,
     maxBytes: 25 * 1024 * 1024
   });
-  const coverURL = await uploadFileToR2(coverToken, params.cover);
+  const coverURL = await uploadFileToR2(coverToken, params.cover, onProgress);
 
   const textBody = `[ARTICLE_JSON]${JSON.stringify({
     headline,
@@ -753,38 +768,53 @@ export async function requestUploadToken(
   }, token);
 }
 
+/** Reports upload progress as a fraction in [0, 1]. */
+export type UploadProgress = (fraction: number) => void;
+
 /**
  * Step 2: PUT the bytes directly to R2 with the headers the token requires.
  * This goes to Cloudflare R2, NOT the Supabase function, so it must not carry
- * the Supabase apikey/Authorization headers.
+ * the Supabase apikey/Authorization headers. Uses XMLHttpRequest so callers can
+ * show real upload progress (fetch can't report request-body progress).
  */
-export async function uploadFileToR2(uploadToken: UploadToken, file: Blob): Promise<string> {
-  const headers = new Headers();
-  for (const [key, value] of Object.entries(uploadToken.requiredHeaders ?? {})) {
-    headers.set(key, value);
+export function uploadFileToR2(
+  uploadToken: UploadToken,
+  file: Blob,
+  onProgress?: UploadProgress
+): Promise<string> {
+  const headers: Record<string, string> = { ...(uploadToken.requiredHeaders ?? {}) };
+  if (!Object.keys(headers).some((key) => key.toLowerCase() === "content-type")) {
+    headers["Content-Type"] = uploadToken.contentType;
   }
-  if (!headers.has("Content-Type")) headers.set("Content-Type", uploadToken.contentType);
 
-  let response: Response;
-  try {
-    response = await fetch(uploadToken.uploadURL, {
-      method: "PUT",
-      headers,
-      body: file
-    });
-  } catch {
-    // A rejected fetch (TypeError: "Failed to fetch") means the browser couldn't
-    // complete the cross-origin PUT — almost always the R2 bucket's CORS policy
-    // not allowing PUT from this web origin.
-    throw new Error(
-      "Couldn't upload the media: the storage bucket blocked the request (CORS). " +
-        "The R2 bucket needs to allow PUT uploads from scrolls.adastra.love."
-    );
-  }
-  if (!response.ok) {
-    throw new Error(`Upload failed (${response.status}). The media bucket may not allow web uploads yet.`);
-  }
-  return uploadToken.publicURL;
+  return new Promise<string>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadToken.uploadURL, true);
+    for (const [key, value] of Object.entries(headers)) xhr.setRequestHeader(key, value);
+
+    xhr.upload.onprogress = (event) => {
+      if (onProgress && event.lengthComputable) onProgress(event.loaded / event.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(1);
+        resolve(uploadToken.publicURL);
+      } else {
+        reject(new Error(`Upload failed (${xhr.status}). The media bucket may not allow web uploads yet.`));
+      }
+    };
+    // A failed cross-origin PUT (no readable status) is almost always the R2
+    // bucket's CORS policy not allowing PUT from this web origin.
+    xhr.onerror = () =>
+      reject(
+        new Error(
+          "Couldn't upload the media: the storage bucket blocked the request (CORS). " +
+            "The R2 bucket needs to allow PUT uploads from scrolls.adastra.love."
+        )
+      );
+    xhr.ontimeout = () => reject(new Error("Upload timed out — try a smaller file or a faster connection."));
+    xhr.send(file);
+  });
 }
 
 /** Step 3 (avatars) / general profile edits: PATCH the current user's profile. */
