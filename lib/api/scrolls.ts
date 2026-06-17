@@ -7,6 +7,7 @@ import type {
   ProfileUpdate,
   ScrollsComment,
   ScrollsNotification,
+  ScrollsCircle,
   ScrollsPost,
   ScrollsUser,
   SearchPostsResponse,
@@ -91,6 +92,29 @@ export async function fetchFeed(token?: string, userID?: string, cursor?: string
     posts: result.posts ?? result.items ?? [],
     nextCursor: result.nextCursor ?? result.next_cursor ?? null
   };
+}
+
+/** City-scoped feed (GET /search/city-posts), mirroring the app's city selector. */
+export async function fetchCityPosts(city: string, token?: string) {
+  const params = new URLSearchParams({ city, limit: "60" });
+  const result = await request<FeedResponse | ScrollsPost[]>(
+    `/search/city-posts?${params}`,
+    { cache: "no-store" },
+    token
+  );
+  if (Array.isArray(result)) return { posts: result, nextCursor: null };
+  return {
+    posts: result.posts ?? result.items ?? [],
+    nextCursor: result.nextCursor ?? result.next_cursor ?? null
+  };
+}
+
+/** The signed-in user's circles (GET /me/circles). Returns a plain array. */
+export async function fetchCircles(userID?: string, token?: string) {
+  const params = new URLSearchParams();
+  if (userID) params.set("user_id", userID);
+  const qs = params.toString();
+  return request<ScrollsCircle[]>(`/me/circles${qs ? `?${qs}` : ""}`, { cache: "no-store" }, token);
 }
 
 export async function searchUsers(query: string, token?: string) {

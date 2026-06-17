@@ -29,6 +29,7 @@ export function SiteHeader() {
           {signedIn ? (
             <>
               <Link href="/compose" className="hidden transition hover:text-white sm:inline">Create</Link>
+              <Link href="/circles" className="hidden transition hover:text-white sm:inline">Circles</Link>
               <NotificationBell />
               <Link href="/account" className="hidden transition hover:text-white sm:inline">Account</Link>
             </>

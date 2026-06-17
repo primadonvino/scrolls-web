@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PostCard } from "@/components/post/PostCard";
 import { SiteHeader } from "@/components/SiteHeader";
-import { fetchFeed } from "@/lib/api/scrolls";
+import { fetchCityPosts, fetchFeed } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
 import { browserSupabaseClient, setRealtimeAuth, type ScrollsRealtimeChannel } from "@/lib/realtime/supabase";
 import type { ScrollsPost } from "@/lib/types/scrolls";
@@ -15,12 +15,20 @@ export default function FeedPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  // Feed scope: null = home "Scrolls" feed, otherwise a city name. Mirrors the
+  // iOS/Android feed-header city selector.
+  const [homeCity, setHomeCity] = useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const selectedCityRef = useRef<string | null>(null);
 
   const refreshFeed = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       const session = await readFreshSession();
-      const result = await fetchFeed(session?.token, session?.user?.id);
+      const city = selectedCityRef.current;
+      const result = city
+        ? await fetchCityPosts(city, session?.token)
+        : await fetchFeed(session?.token, session?.user?.id);
       setPosts((current) => mergeFreshPosts(result.posts, current));
       setNextCursor(result.nextCursor);
       setError(null);
@@ -31,7 +39,21 @@ export default function FeedPage() {
     }
   }, []);
 
+  const selectCity = useCallback(
+    (city: string | null) => {
+      selectedCityRef.current = city;
+      setSelectedCity(city);
+      setPosts([]);
+      setNextCursor(null);
+      refreshFeed();
+    },
+    [refreshFeed]
+  );
+
   useEffect(() => {
+    readFreshSession().then((session) => {
+      setHomeCity(session?.user?.homeCity ?? session?.user?.home_city ?? null);
+    });
     refreshFeed();
   }, [refreshFeed]);
 
@@ -111,14 +133,40 @@ export default function FeedPage() {
     <div>
       <SiteHeader />
       <section className="mx-auto max-w-2xl px-5 pb-16">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-black">Feed</h1>
-            <p className="mt-2 text-white/55">Your Scrolls timeline on the web.</p>
-          </div>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <details className="group relative">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-4xl font-black">
+              {selectedCity ?? "Scrolls"}
+              <span className="text-2xl text-white/40 transition group-open:rotate-180">⌄</span>
+            </summary>
+            <div className="absolute left-0 z-30 mt-2 w-56 overflow-hidden rounded-2xl border border-white/10 bg-[#171719] p-1 shadow-glow">
+              <button
+                type="button"
+                onClick={() => selectCity(null)}
+                className={`block w-full rounded-xl px-4 py-2.5 text-left text-sm font-bold transition hover:bg-white/10 ${
+                  selectedCity === null ? "text-scrolls-gold" : "text-white/85"
+                }`}
+              >
+                Scrolls
+              </button>
+              {homeCity ? (
+                <button
+                  type="button"
+                  onClick={() => selectCity(homeCity)}
+                  className={`block w-full rounded-xl px-4 py-2.5 text-left text-sm font-bold transition hover:bg-white/10 ${
+                    selectedCity === homeCity ? "text-scrolls-gold" : "text-white/85"
+                  }`}
+                >
+                  {homeCity}
+                </button>
+              ) : (
+                <p className="px-4 py-2.5 text-xs text-white/40">Set a home city in the app to see a city feed.</p>
+              )}
+            </div>
+          </details>
           <div className="flex gap-2">
             <Link href="/compose" className="rounded-full bg-white px-4 py-2 text-sm font-black text-black">Create</Link>
-            <Link href="/login" className="rounded-full border border-white/15 px-4 py-2 text-sm text-white/75">Log in</Link>
+            <Link href="/circles" className="rounded-full border border-white/15 px-4 py-2 text-sm text-white/75">Circles</Link>
           </div>
         </div>
         {loading ? <p className="rounded-2xl bg-white/[0.04] p-5 text-white/60">Loading feed...</p> : null}
