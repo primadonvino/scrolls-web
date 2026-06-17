@@ -261,6 +261,17 @@ export function strippedCaption(caption?: string | null): string | null {
   return kept || null;
 }
 
+/** Extra carousel photo URLs encoded in a photo post's caption (beyond the asset). */
+export function photoCarouselURLs(caption?: string | null): string[] {
+  if (!caption) return [];
+  for (const raw of caption.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.toUpperCase().startsWith("[PHOTO_CAROUSEL_BASE64]")) continue;
+    return parseStringArray(line.slice("[PHOTO_CAROUSEL_BASE64]".length).trim());
+  }
+  return [];
+}
+
 /** Formats a track duration in seconds as `m:ss`. */
 export function formatDuration(seconds?: number | null): string | null {
   if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return null;

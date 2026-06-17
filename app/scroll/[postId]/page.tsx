@@ -4,52 +4,105 @@ import { AppSmartBanner } from "@/components/AppSmartBanner";
 import { PostCard } from "@/components/post/PostCard";
 import { SiteHeader } from "@/components/SiteHeader";
 import { fetchPost } from "@/lib/api/scrolls";
-import { postCoverURL, postMediaURL } from "@/lib/media/urls";
-import { parseMusicPost, strippedCaption } from "@/lib/music/markers";
+import { parseArticle } from "@/lib/article/article";
+import { normalizedAssetURL, postCoverURL, postMediaURL } from "@/lib/media/urls";
+import { parseMusicPost, photoCarouselURLs, releaseTypeLabel, strippedCaption } from "@/lib/music/markers";
 import type { ScrollsPost } from "@/lib/types/scrolls";
+
+const BASE = process.env.NEXT_PUBLIC_SCROLLS_WEB_BASE_URL ?? "https://scrolls.adastra.love";
 
 type Params = { params: Promise<{ postId: string }> };
 
+function truncate(text: string, max = 200): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+}
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { postId } = await params;
+  const url = `${BASE}/scroll/${postId}`;
+  const fallbackImage = `${BASE}/api/og/scroll/${postId}`;
   try {
     const post = await fetchPost(postId);
-    const author = post?.author ?? post?.user;
+    if (!post) throw new Error("unavailable");
+
+    // Rescrolls credit the original author; canonical points at the original.
+    const rescroll = post.rescrollOrigin ?? post.rescroll_origin ?? null;
+    const author = rescroll?.user ?? post.author ?? post.user;
     const displayName = author?.displayName ?? author?.display_name ?? author?.username ?? "Scrolls";
-    const username = author?.username ? `@${author.username}` : "Scrolls";
-    const music = parseMusicPost(post?.caption);
-    const caption = music.isMusic || music.isPodcast
-      ? [music.title, music.tracks.length ? `${music.tracks.length} tracks` : null]
-          .filter(Boolean)
-          .join(" · ")
-      : strippedCaption(post?.caption ?? undefined)?.trim();
-    const description = caption || `View this scroll from ${username}.`;
-    const image = post ? postCoverURL(post) ?? postMediaURL(post) ?? undefined : undefined;
+    const handle = author?.username ? `@${author.username}` : "Scrolls";
+
+    const music = parseMusicPost(post.caption);
+    const article = parseArticle(post);
+    const cover = postCoverURL(post) ?? postMediaURL(post) ?? null;
+
+    let title = `${displayName} on Scrolls`;
+    let description = `View this scroll from ${handle}.`;
+    let ogType: "website" | "article" = "website";
+    let image = cover ?? fallbackImage;
+
+    if (music.isMusic || music.isPodcast) {
+      title = music.title ? `${music.title} by ${displayName}` : `${displayName} on Scrolls`;
+      const meta = [releaseTypeLabel(music.releaseType), music.genre, music.recordLabel].filter(Boolean).join(" · ");
+      const tracks = music.tracks.map((track) => track.title).filter(Boolean).join(", ");
+      description = truncate([tracks || (music.isPodcast ? "Podcast" : "Music"), meta].filter(Boolean).join(" — "));
+    } else if (article) {
+      title = article.headline;
+      description = truncate(article.blocks.map((block) => block.text).join(" "));
+      ogType = "article";
+      image = normalizedAssetURL(article.coverImageRef) ?? cover ?? fallbackImage;
+    } else {
+      const type = post.mediaPreview?.type ?? post.type;
+      const clean = strippedCaption(post.caption ?? undefined)?.trim();
+      const carousel = photoCarouselURLs(post.caption);
+      const parts: string[] = [];
+      if (rescroll && post.author?.username) parts.push(`@${post.author.username} rescrolled @${author?.username ?? ""}`);
+      if (clean) parts.push(clean);
+      if (carousel.length) parts.push(`${carousel.length + 1} photos`);
+      description = truncate(parts.join(" · ") || `View this scroll from ${handle}.`);
+      title = `${displayName} on Scrolls`;
+      image = cover ?? fallbackImage;
+      void type;
+    }
+
     return {
-      title: `${displayName} on Scrolls`,
+      title,
       description,
+      alternates: { canonical: rescroll?.postID ? `${BASE}/scroll/${rescroll.postID}` : url },
       openGraph: {
-        title: `${displayName} on Scrolls`,
+        title,
         description,
-        images: image ? [{ url: image }] : undefined
+        url,
+        siteName: "Scrolls",
+        type: ogType,
+        images: [{ url: image }]
       },
       twitter: {
-        card: image ? "summary_large_image" : "summary",
-        title: `${displayName} on Scrolls`,
+        card: "summary_large_image",
+        title,
         description,
-        images: image ? [image] : undefined
+        images: [image]
       }
     };
   } catch {
-    // Fall through to the generic app-open metadata when the post is private,
-    // deleted, or temporarily unavailable.
+    // Private, deleted, or temporarily unavailable.
   }
   return {
     title: "Scroll",
-    description: `Open this Scrolls post: ${postId}`,
+    description: "Open this Scrolls post.",
+    alternates: { canonical: url },
     openGraph: {
       title: "Open this scroll",
-      description: "View this post in Scrolls."
+      description: "View this post in Scrolls.",
+      url,
+      siteName: "Scrolls",
+      images: [{ url: fallbackImage }]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Open this scroll",
+      description: "View this post in Scrolls.",
+      images: [fallbackImage]
     }
   };
 }
