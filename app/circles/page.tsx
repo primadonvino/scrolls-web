@@ -6,6 +6,7 @@ import { Avatar } from "@/components/Avatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { fetchCircles } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
+import { circlePreviewLabel } from "@/lib/circles/preview";
 import type { ScrollsCircle } from "@/lib/types/scrolls";
 
 type State =
@@ -50,8 +51,8 @@ export default function CirclesPage() {
           <h1 className="mt-2 text-4xl font-black">Circles</h1>
         </div>
         <p className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm text-white/55">
-          🔒 Circle messages are end-to-end encrypted on each device, so their text can&rsquo;t be read on the web yet.
-          Open a circle in the Scrolls app to read and reply.
+          🔒 Messages encrypted on a device can&rsquo;t be read on the web. Open a circle in the
+          Scrolls app to read and reply to those.
         </p>
 
         {state.status === "loading" ? <p className="text-white/55">Loading circles…</p> : null}
@@ -109,7 +110,7 @@ function CircleRow({ circle, selfId }: { circle: ScrollsCircle; selfId?: string 
       <div className="min-w-0 flex-1">
         <p className="truncate font-bold text-white">{title}</p>
         <p className="truncate text-sm text-white/45">
-          {last ? "🔒 Encrypted message" : "No messages yet"}
+          {circlePreviewLabel(last, selfId)}
         </p>
       </div>
       {when ? <span className="shrink-0 text-xs text-white/40">{when}</span> : null}
