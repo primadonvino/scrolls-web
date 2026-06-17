@@ -1,3 +1,4 @@
+import { buildMusicCaption, type MusicReleaseType, type MusicTrack } from "@/lib/music/markers";
 import type {
   AuthSession,
   CreatePostResponse,
@@ -216,6 +217,115 @@ export async function createMediaPost(
       coverBucket: params.cover?.bucket ?? null,
       coverObjectKey: params.cover?.objectKey ?? null,
       aspectRatio: params.aspectRatio ?? null,
+      createdAt: new Date().toISOString()
+    })
+  }, token);
+}
+
+const AUDIO_EXT: Record<string, string> = {
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/aac": "aac",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/mp4": "m4a",
+  "audio/x-m4a": "m4a",
+  "audio/m4a": "m4a"
+};
+
+export type MusicTrackUpload = {
+  file: File;
+  title: string;
+  isExplicit: boolean;
+  lyrics?: string | null;
+  durationSeconds?: number | null;
+};
+
+/**
+ * Publishes a music post. Mirrors the iOS/Android music flow: upload the cover
+ * art + each track's audio to R2 under `music/<owner>/<postId>/…`, assemble the
+ * `[MUSIC] …` caption markers, and create a TEXT post with the cover attached.
+ * No new backend support is required — it reuses /upload-token and /posts.
+ */
+export async function createMusicPost(
+  params: {
+    authorID: string;
+    caption?: string | null;
+    releaseType?: MusicReleaseType | null;
+    releaseDate?: string | null;
+    recordLabel?: string | null;
+    genre?: string | null;
+    linerNotes?: string | null;
+    cover: File;
+    tracks: MusicTrackUpload[];
+  },
+  token: string
+): Promise<CreatePostResponse> {
+  if (!params.tracks.length) throw new Error("Add at least one audio track.");
+  const postID = crypto.randomUUID();
+  const owner = params.authorID.toLowerCase();
+
+  // Cover art → R2.
+  const coverType = params.cover.type || "image/jpeg";
+  const coverExt = coverType.includes("png") ? "png" : "jpg";
+  const coverToken = await requestUploadToken(token, {
+    contentType: coverType,
+    objectKey: `music/${owner}/${postID}/cover/${postID}.${coverExt}`,
+    maxBytes: 25 * 1024 * 1024
+  });
+  await uploadFileToR2(coverToken, params.cover);
+
+  // Each track's audio → R2, collecting public URLs for the caption payload.
+  const trackMeta: MusicTrack[] = [];
+  for (let index = 0; index < params.tracks.length; index++) {
+    const track = params.tracks[index];
+    const contentType = track.file.type || "audio/mpeg";
+    const ext = AUDIO_EXT[contentType] ?? "m4a";
+    const trackToken = await requestUploadToken(token, {
+      contentType,
+      objectKey: `music/${owner}/${postID}/tracks/${postID}-${index}.${ext}`,
+      maxBytes: 60 * 1024 * 1024
+    });
+    const publicURL = await uploadFileToR2(trackToken, track.file);
+    trackMeta.push({
+      id: crypto.randomUUID(),
+      title: track.title.trim() || `Track ${index + 1}`,
+      audioURL: publicURL,
+      durationSeconds: track.durationSeconds ?? null,
+      lyrics: track.lyrics?.trim() || null,
+      isExplicit: track.isExplicit
+    });
+  }
+
+  const caption = buildMusicCaption({
+    isPodcast: false,
+    caption: params.caption ?? null,
+    releaseType: params.releaseType ?? null,
+    tracks: trackMeta,
+    releaseDate: params.releaseDate ?? null,
+    recordLabel: params.recordLabel ?? null,
+    genre: params.genre ?? null,
+    linerNotes: params.linerNotes ?? null
+  });
+
+  return request<CreatePostResponse>("/posts", {
+    method: "POST",
+    body: JSON.stringify({
+      id: postID,
+      authorID: params.authorID,
+      user_id: params.authorID,
+      type: "text",
+      caption,
+      websiteURL: null,
+      locationCity: null,
+      textBody: null,
+      assetProvider: null,
+      assetBucket: null,
+      assetObjectKey: null,
+      coverProvider: coverToken.provider,
+      coverBucket: coverToken.bucket,
+      coverObjectKey: coverToken.objectKey,
+      aspectRatio: null,
       createdAt: new Date().toISOString()
     })
   }, token);

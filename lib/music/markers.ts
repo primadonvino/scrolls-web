@@ -166,20 +166,20 @@ export function parseMusicPost(caption?: string | null): ParsedMusic {
   let videoLinkIDs: string[] = [];
   let loopVideoURL: string | null = null;
 
+  // Mirror iOS exactly: strip the leading [MUSIC]/[PODCAST] marker from the
+  // whole caption first, then parse the remainder line by line. iOS packs the
+  // first payload entry onto the marker line, so an empty display caption still
+  // parses correctly. Non-marker lines become the display title/caption.
   const headPrefix = music ? MARKER.music : MARKER.podcast;
-  let seenHead = false;
+  const trimmedCaption = (caption ?? "").trim();
+  const remainder = trimmedCaption.slice(headPrefix.length);
+  const displayLines: string[] = [];
 
-  for (const raw of (caption ?? "").split(/\r?\n/)) {
+  for (const raw of remainder.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
     const upper = line.toUpperCase();
 
-    if (!seenHead && upper.startsWith(headPrefix)) {
-      const t = lineSuffix(line, headPrefix);
-      if (t) title = t;
-      seenHead = true;
-      continue;
-    }
     if (upper.startsWith(MARKER.releaseType)) {
       const v = lineSuffix(line, MARKER.releaseType).toLowerCase();
       if (v === "album") releaseType = "album";
@@ -220,7 +220,13 @@ export function parseMusicPost(caption?: string | null): ParsedMusic {
       if (v) loopVideoURL = v;
       continue;
     }
+    // Other structured markers (carousel, collaborators, article) can ride
+    // along on a music post; never let their raw text leak into the title.
+    if (ALL_MARKERS.some((m) => upper.startsWith(m))) continue;
+    displayLines.push(line);
   }
+
+  title = displayLines.join("\n").trim() || null;
 
   return {
     isMusic: music,
@@ -294,4 +300,96 @@ export function releaseTypeLabel(type: MusicReleaseType | null): string | null {
   if (type === "album") return "Album";
   if (type === "singlesEPs") return "Single / EP";
   return null;
+}
+
+// ── Composer (caption assembly) ──────────────────────────────────────────────
+
+/** Genre options, matching iOS `MusicGenreOption` raw values exactly. */
+export const MUSIC_GENRES = [
+  "Pop",
+  "Rock",
+  "Dance",
+  "Hip-Hop / Rap",
+  "Electronic",
+  "R&B / Soul",
+  "Country",
+  "Classical",
+  "Jazz",
+  "Blues",
+  "Folk",
+  "Reggae",
+  "World / Global"
+] as const;
+
+export const RELEASE_TYPE_OPTIONS: { value: MusicReleaseType; label: string }[] = [
+  { value: "album", label: "Album" },
+  { value: "singlesEPs", label: "Single / EP" }
+];
+
+/** Cross-runtime UTF-8 base64 encode (inverse of `decodeBase64Utf8`). */
+function encodeBase64Utf8(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+export type MusicCaptionInput = {
+  isPodcast: boolean;
+  caption?: string | null;
+  releaseType?: MusicReleaseType | null;
+  tracks: MusicTrack[];
+  releaseDate?: string | null;
+  recordLabel?: string | null;
+  genre?: string | null;
+  linerNotes?: string | null;
+};
+
+/**
+ * Builds the music/podcast caption marker string, byte-compatible with the iOS
+ * `FeedPost.musicCaption(...)` / `podcastCaption(...)` assemblers so posts
+ * created on the web parse identically in the iOS and Android apps.
+ */
+export function buildMusicCaption(input: MusicCaptionInput): string {
+  const head = input.isPodcast ? MARKER.podcast : MARKER.music;
+  const trimmed = (input.caption ?? "").trim();
+  const payload: string[] = [];
+
+  if (trimmed) payload.push(trimmed);
+
+  if (!input.isPodcast) {
+    if (input.releaseType) {
+      payload.push(`${MARKER.releaseType} ${input.releaseType}`);
+    }
+    const tracksJSON = JSON.stringify(
+      input.tracks.map((track) => {
+        const entry: Record<string, unknown> = {
+          id: track.id,
+          title: track.title,
+          isExplicit: track.isExplicit
+        };
+        if (track.audioURL) entry.audioURL = track.audioURL;
+        if (track.durationSeconds != null) entry.durationSeconds = track.durationSeconds;
+        if (track.lyrics) entry.lyrics = track.lyrics;
+        return entry;
+      })
+    );
+    if (input.tracks.length) {
+      payload.push(`${MARKER.tracks} ${encodeBase64Utf8(tracksJSON)}`);
+    }
+    const releaseDate = (input.releaseDate ?? "").trim();
+    if (releaseDate) payload.push(`${MARKER.releaseDate} ${releaseDate}`);
+
+    const label = (input.recordLabel ?? "").trim();
+    if (label) payload.push(`${MARKER.recordLabel} ${label}`);
+
+    const genre = (input.genre ?? "").trim();
+    if (genre) payload.push(`${MARKER.genre} ${genre}`);
+
+    const liner = (input.linerNotes ?? "").trim();
+    if (liner) payload.push(`${MARKER.linerNotes} ${encodeBase64Utf8(liner)}`);
+  }
+
+  if (payload.length === 0) return head;
+  return `${head} ${payload.join("\n")}`;
 }

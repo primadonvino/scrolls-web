@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Avatar } from "@/components/Avatar";
+import { MusicComposer } from "@/components/compose/MusicComposer";
 import { SiteHeader } from "@/components/SiteHeader";
 import { createMediaPost, createTextPost, uploadPostMedia } from "@/lib/api/scrolls";
 import { readFreshSession, readSession } from "@/lib/auth/session";
 import type { AuthSession } from "@/lib/types/scrolls";
 
-type Mode = "text" | "photo" | "video";
+type Mode = "text" | "photo" | "video" | "music";
 
 const MAX_TEXT = 2000;
 const MAX_CAPTION = 220;
@@ -106,7 +107,7 @@ export default function ComposePage() {
         const trimmed = body.trim();
         if (!trimmed) return;
         await createTextPost(fresh.user.id, trimmed, fresh.token);
-      } else {
+      } else if (mode === "photo" || mode === "video") {
         if (!file) {
           setError("Choose a file to post.");
           return;
@@ -158,7 +159,7 @@ export default function ComposePage() {
             </button>
           </div>
         ) : (
-          <form onSubmit={publish} className="scrolls-glass rounded-[1.8rem] p-5">
+          <div className="scrolls-glass rounded-[1.8rem] p-5">
             <div className="flex items-center gap-3">
               <Avatar user={user} size={48} />
               <div className="min-w-0">
@@ -168,7 +169,7 @@ export default function ComposePage() {
             </div>
 
             <div className="mt-4 flex gap-2">
-              {(["text", "photo", "video"] as Mode[]).map((value) => (
+              {(["text", "photo", "video", "music"] as Mode[]).map((value) => (
                 <button
                   key={value}
                   type="button"
@@ -182,6 +183,10 @@ export default function ComposePage() {
               ))}
             </div>
 
+            {mode === "music" ? (
+              <MusicComposer onPosted={() => router.push("/feed")} />
+            ) : (
+            <form onSubmit={publish}>
             {mode === "text" ? (
               <>
                 <textarea
@@ -238,10 +243,9 @@ export default function ComposePage() {
               </button>
             </div>
             {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
-            <p className="mt-4 text-xs text-white/40">
-              Music posting stays in the Scrolls app for now (release metadata + editor).
-            </p>
-          </form>
+            </form>
+            )}
+          </div>
         )}
       </section>
     </div>
