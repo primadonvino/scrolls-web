@@ -8,6 +8,7 @@ import type {
   ScrollsComment,
   ScrollsNotification,
   ScrollsCircle,
+  ScrollsMoment,
   ScrollsPost,
   ScrollsUser,
   SearchPostsResponse,
@@ -107,6 +108,14 @@ export async function fetchCityPosts(city: string, token?: string) {
     posts: result.posts ?? result.items ?? [],
     nextCursor: result.nextCursor ?? result.next_cursor ?? null
   };
+}
+
+/** Active moments + live sessions for the user's graph (GET /moments). */
+export async function fetchMoments(userID?: string, token?: string) {
+  const params = new URLSearchParams();
+  if (userID) params.set("user_id", userID);
+  const qs = params.toString();
+  return request<ScrollsMoment[]>(`/moments${qs ? `?${qs}` : ""}`, { cache: "no-store" }, token);
 }
 
 /** The signed-in user's circles (GET /me/circles). Returns a plain array. */

@@ -28,6 +28,7 @@ export function SiteHeader() {
     ? [
         { href: "/feed", label: "Feed" },
         { href: "/search", label: "Search" },
+        { href: "/live", label: "Live" },
         { href: "/compose", label: "Create" },
         { href: "/circles", label: "Circles" },
         { href: accountHref, label: "Profile" }

@@ -153,6 +153,28 @@ export type ScrollsCircle = {
   createdAt?: string;
 };
 
+export type ScrollsLiveSession = {
+  id: string;
+  ownerUserID?: string;
+  playbackURL?: string;
+  iframePlaybackURL?: string | null;
+  startedAt?: string | null;
+  title?: string | null;
+  mode?: string | null;
+  hasViewerPassword?: boolean;
+};
+
+export type ScrollsMoment = {
+  id: string;
+  user: ScrollsUser;
+  videoRef?: string;
+  createdAt?: string;
+  expiresAt?: string;
+  liveSession?: ScrollsLiveSession | null;
+  viewCount?: number;
+  hasViewed?: boolean;
+};
+
 export type AuthSession = {
   token: string;
   refresh_token?: string;
