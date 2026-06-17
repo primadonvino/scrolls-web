@@ -20,10 +20,12 @@ function isRescroll(post: ScrollsPost): boolean {
  */
 export function ProfilePosts({
   profile,
-  initialPosts
+  initialPosts,
+  pinnedPostId
 }: {
   profile: ScrollsUser;
   initialPosts: ScrollsPost[];
+  pinnedPostId?: string;
 }) {
   const [posts, setPosts] = useState<ScrollsPost[]>(initialPosts);
   const [tab, setTab] = useState<Tab>("scrolls");
@@ -51,8 +53,9 @@ export function ProfilePosts({
     };
   }, [profile.id]);
 
-  const scrolls = posts.filter((post) => !isRescroll(post));
-  const rescrolls = posts.filter(isRescroll);
+  const shown = pinnedPostId ? posts.filter((post) => post.id !== pinnedPostId) : posts;
+  const scrolls = shown.filter((post) => !isRescroll(post));
+  const rescrolls = shown.filter(isRescroll);
   const visible = tab === "scrolls" ? scrolls : rescrolls;
 
   return (

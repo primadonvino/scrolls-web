@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AppCTA } from "@/components/AppCTA";
 import { AppSmartBanner } from "@/components/AppSmartBanner";
+import { OpenInAppCTA } from "@/components/OpenInAppCTA";
 import { PostCard } from "@/components/post/PostCard";
 import { SiteHeader } from "@/components/SiteHeader";
 import { fetchPost } from "@/lib/api/scrolls";
@@ -98,12 +99,11 @@ export default async function ScrollPage({ params }: Params) {
               <h1 className="mt-3 text-4xl font-black">View this post on Scrolls</h1>
             </div>
             <PostCard post={post} />
-            <div className="flex flex-wrap justify-center gap-3">
-              <a href={`scrolls://scroll/${postId}`} className="rounded-full bg-scrolls-blue px-5 py-3 text-sm font-bold">
-                Open in app
-              </a>
-              <AppCTA />
-            </div>
+            <OpenInAppCTA
+              deepLink={`scrolls://scroll/${postId}`}
+              title="Join the conversation on Scrolls"
+              subtitle="Open in the app to comment, rescroll, and follow the creator."
+            />
           </>
         ) : (
           <div className="self-center rounded-[2rem] border border-white/10 bg-scrolls-panel p-8 text-center">
