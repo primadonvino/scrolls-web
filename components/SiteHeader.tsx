@@ -30,7 +30,7 @@ export function SiteHeader() {
         { href: "/search", label: "Search" },
         { href: "/compose", label: "Create" },
         { href: "/circles", label: "Circles" },
-        { href: accountHref, label: "Account" }
+        { href: accountHref, label: "Profile" }
       ]
     : [
         { href: "/feed", label: "Feed" },
