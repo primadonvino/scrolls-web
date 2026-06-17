@@ -9,12 +9,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Themeable tokens. white/black are redefined as foreground/background
+        // channels so the app's existing text-white/bg-black utilities re-map
+        // per theme (light/dark/cheetah) via CSS variables in globals.css.
+        white: "rgb(var(--c-white) / <alpha-value>)",
+        black: "rgb(var(--c-black) / <alpha-value>)",
         scrolls: {
-          black: "#020203",
-          panel: "#1d1d20",
-          panel2: "#29292d",
-          gold: "#d6b36c",
-          blue: "#0a84ff"
+          black: "rgb(var(--c-bg) / <alpha-value>)",
+          panel: "rgb(var(--c-panel) / <alpha-value>)",
+          panel2: "rgb(var(--c-panel2) / <alpha-value>)",
+          gold: "rgb(var(--c-gold) / <alpha-value>)",
+          blue: "rgb(var(--c-blue) / <alpha-value>)"
         }
       },
       boxShadow: {

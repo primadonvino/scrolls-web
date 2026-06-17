@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, LogOut, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { SiteHeader } from "@/components/SiteHeader";
+import { ThemeSelector } from "@/components/theme/ThemeSelector";
 import { clearSession, readFreshSession, readSession } from "@/lib/auth/session";
 import { deleteCurrentAccount } from "@/lib/api/scrolls";
 import type { AuthSession } from "@/lib/types/scrolls";
@@ -63,6 +64,14 @@ export default function AccountPage() {
         <div className="mb-6">
           <p className="text-sm font-bold uppercase tracking-[0.22em] text-scrolls-gold">Account</p>
           <h1 className="mt-2 text-4xl font-black">Settings</h1>
+        </div>
+
+        <div className="scrolls-glass mb-5 rounded-[1.8rem] p-5">
+          <h2 className="text-lg font-black">Appearance</h2>
+          <p className="mt-1 text-sm text-white/55">Choose how Scrolls looks on this device.</p>
+          <div className="mt-4">
+            <ThemeSelector />
+          </div>
         </div>
 
         {!user ? (

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { PlayerProvider } from "@/components/player/PlayerProvider";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
+import { ThemeProvider, themeInitScript } from "@/components/theme/ThemeProvider";
 import "./globals.css";
 
 const appStoreURL = process.env.NEXT_PUBLIC_SCROLLS_APP_STORE_URL ?? "https://apps.apple.com/us/app/scrolls/id6761082441";
@@ -38,12 +39,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="dark">
       <body>
-        <RegisterServiceWorker />
-        <PlayerProvider>
-          <main className="safe-shell">{children}</main>
-        </PlayerProvider>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <ThemeProvider>
+          <RegisterServiceWorker />
+          <PlayerProvider>
+            <main className="safe-shell">{children}</main>
+          </PlayerProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

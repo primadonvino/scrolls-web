@@ -2,9 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* ── Theme tokens ──────────────────────────────────────────────────────────
+   white/black are repurposed as foreground/background channels so existing
+   utilities (text-white, bg-black, border-white/10, …) re-map per theme. */
+:root,
+[data-theme="dark"] {
   color-scheme: dark;
-  background: #020203;
+  --c-white: 255 255 255;
+  --c-black: 2 2 3;
+  --c-bg: 2 2 3;
+  --c-panel: 29 29 32;
+  --c-panel2: 41 41 45;
+  --c-gold: 214 179 108;
+  --c-blue: 10 132 255;
+  --page-bg: #020203;
+  --sheen: rgba(255, 255, 255, 0.035);
+  --glass-bg: 29 29 32;
+  --glass-border: 255 255 255;
+  --glass-border-alpha: 0.1;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --c-white: 24 24 30; /* "text-white" → dark ink */
+  --c-black: 244 244 247; /* "bg-black" → light surface */
+  --c-bg: 244 244 247;
+  --c-panel: 255 255 255;
+  --c-panel2: 235 235 240;
+  --c-gold: 162 124 28;
+  --c-blue: 10 110 240;
+  --page-bg: #eef0f4;
+  --sheen: rgba(0, 0, 0, 0.035);
+  --glass-bg: 255 255 255;
+  --glass-border: 0 0 0;
+  --glass-border-alpha: 0.1;
+}
+
+/* Keep light text on accent-colored buttons in light mode. */
+[data-theme="light"] .bg-scrolls-blue,
+[data-theme="light"] .bg-scrolls-gold,
+[data-theme="light"] .bg-red-500,
+[data-theme="light"] .bg-red-400 {
+  --c-white: 255 255 255;
+}
+
+[data-theme="cheetah"] {
+  color-scheme: dark;
+  --c-white: 245 233 209; /* cream text */
+  --c-black: 26 17 8; /* dark warm surface */
+  --c-bg: 26 17 8;
+  --c-panel: 46 32 16;
+  --c-panel2: 62 44 22;
+  --c-gold: 240 168 48; /* amber */
+  --c-blue: 233 138 42; /* warm accent in the blue slot */
+  --page-bg: #1a1108;
+  --sheen: rgba(240, 168, 48, 0.06);
+  --glass-bg: 46 32 16;
+  --glass-border: 240 168 48;
+  --glass-border-alpha: 0.18;
 }
 
 * {
@@ -16,9 +71,25 @@ body {
   min-height: 100%;
   margin: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 18rem),
-    #020203;
-  color: white;
+    linear-gradient(180deg, var(--sheen), rgba(255, 255, 255, 0) 18rem),
+    var(--page-bg);
+  color: rgb(var(--c-white));
+}
+
+/* Subtle cheetah spotting on the page backdrop. */
+[data-theme="cheetah"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 12% 22%, rgba(0, 0, 0, 0.5) 0 7px, transparent 8px),
+    radial-gradient(circle at 38% 64%, rgba(0, 0, 0, 0.5) 0 6px, transparent 7px),
+    radial-gradient(circle at 72% 30%, rgba(0, 0, 0, 0.5) 0 8px, transparent 9px),
+    radial-gradient(circle at 88% 78%, rgba(0, 0, 0, 0.5) 0 6px, transparent 7px);
+  background-size: 220px 220px;
+  opacity: 0.05;
 }
 
 body {
@@ -44,8 +115,8 @@ a {
 }
 
 .scrolls-glass {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(29, 29, 32, 0.84);
+  border: 1px solid rgb(var(--glass-border) / var(--glass-border-alpha));
+  background: rgb(var(--glass-bg) / 0.84);
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.38);
   backdrop-filter: blur(24px);
 }
