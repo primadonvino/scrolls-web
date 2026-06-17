@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { AppCTA } from "@/components/AppCTA";
+import { NotificationBell } from "@/components/NotificationBell";
 import { readSession } from "@/lib/auth/session";
 
 export function SiteHeader() {
@@ -28,10 +29,14 @@ export function SiteHeader() {
           {signedIn ? (
             <>
               <Link href="/compose" className="hidden transition hover:text-white sm:inline">Create</Link>
+              <NotificationBell />
               <Link href="/account" className="hidden transition hover:text-white sm:inline">Account</Link>
             </>
           ) : (
-            <Link href="/login" className="hidden transition hover:text-white sm:inline">Log in</Link>
+            <>
+              <Link href="/signup" className="hidden transition hover:text-white sm:inline">Sign up</Link>
+              <Link href="/login" className="hidden transition hover:text-white sm:inline">Log in</Link>
+            </>
           )}
           <AppCTA label="Get the app" />
         </nav>

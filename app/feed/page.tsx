@@ -6,6 +6,7 @@ import { PostCard } from "@/components/post/PostCard";
 import { SiteHeader } from "@/components/SiteHeader";
 import { fetchFeed } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
+import { browserSupabaseClient, setRealtimeAuth, type ScrollsRealtimeChannel } from "@/lib/realtime/supabase";
 import type { ScrollsPost } from "@/lib/types/scrolls";
 
 export default function FeedPage() {
@@ -15,26 +16,54 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  const refreshFeed = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const session = await readFreshSession();
+      const result = await fetchFeed(session?.token, session?.user?.id);
+      setPosts((current) => mergeFreshPosts(result.posts, current));
+      setNextCursor(result.nextCursor);
+      setError(null);
+    } catch (err) {
+      if (!silent) setError(err instanceof Error ? err.message : "Could not load feed.");
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshFeed();
+  }, [refreshFeed]);
+
   useEffect(() => {
     let cancelled = false;
-    readFreshSession()
-      .then((session) => fetchFeed(session?.token, session?.user?.id))
-      .then((result) => {
-        if (!cancelled) {
-          setPosts(result.posts);
-          setNextCursor(result.nextCursor);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load feed.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    let channel: ScrollsRealtimeChannel | null = null;
+    const interval = window.setInterval(() => refreshFeed(true), 60_000);
+
+    (async () => {
+      const session = await readFreshSession();
+      if (!session?.token || !session.user?.id || cancelled) return;
+      const supabase = setRealtimeAuth(session.token);
+      if (!supabase) return;
+      channel = supabase
+        .channel(`scrolls-web-feed-${session.user.id}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => refreshFeed(true))
+        .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, () => refreshFeed(true))
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "follows", filter: `follower_id=eq.${session.user.id}` },
+          () => refreshFeed(true)
+        )
+        .subscribe();
+    })();
+
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      const supabase = browserSupabaseClient();
+      if (channel && supabase) supabase.removeChannel(channel);
     };
-  }, []);
+  }, [refreshFeed]);
 
   function removeBlockedAuthor(userID: string) {
     setPosts((current) => current.filter((post) => {
@@ -114,4 +143,11 @@ export default function FeedPage() {
       </section>
     </div>
   );
+}
+
+function mergeFreshPosts(fresh: ScrollsPost[], current: ScrollsPost[]) {
+  if (!current.length) return fresh;
+  const freshIDs = new Set(fresh.map((post) => post.id));
+  const olderCurrent = current.filter((post) => !freshIDs.has(post.id));
+  return [...fresh, ...olderCurrent].slice(0, Math.max(current.length, fresh.length));
 }

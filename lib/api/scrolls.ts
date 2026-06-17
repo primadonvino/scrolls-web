@@ -2,11 +2,14 @@ import type {
   AuthSession,
   CreatePostResponse,
   FeedResponse,
+  NotificationsResponse,
   ProfileUpdate,
   ScrollsComment,
+  ScrollsNotification,
   ScrollsPost,
   ScrollsUser,
   SearchPostsResponse,
+  SignupPayload,
   UploadToken
 } from "@/lib/types/scrolls";
 
@@ -46,6 +49,27 @@ export async function login(identifier: string, password: string) {
   return request<AuthSession>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ identifier, password })
+  });
+}
+
+export async function signup(payload: SignupPayload) {
+  return request<AuthSession>("/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({
+      username: payload.username,
+      email: payload.email,
+      password: payload.password,
+      dateOfBirth: payload.dateOfBirth,
+      accountType: payload.accountType ?? "personal",
+      parentalControls: payload.parentalControls ?? null
+    })
+  });
+}
+
+export async function requestPasswordReset(identifier: string) {
+  return request<{ message?: string }>("/auth/password-reset", {
+    method: "POST",
+    body: JSON.stringify({ identifier })
   });
 }
 
@@ -272,6 +296,33 @@ export async function reportContent(
 
 export async function deleteCurrentAccount(token: string) {
   return request<{ ok: boolean }>("/users/me", { method: "DELETE" }, token);
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────
+
+export async function fetchNotifications(token: string, before?: string | null) {
+  const params = new URLSearchParams({ limit: "30" });
+  if (before) params.set("before", before);
+  return request<NotificationsResponse>(`/me/notifications?${params}`, { cache: "no-store" }, token);
+}
+
+export async function markNotificationRead(id: string, token: string, isRead = true) {
+  return request<{ ok: boolean; id: string; isRead: boolean }>("/me/mark", {
+    method: "POST",
+    body: JSON.stringify({ id, isRead })
+  }, token);
+}
+
+export async function markAllNotificationsRead(token: string) {
+  return request<{ ok: boolean }>("/me/read-all", { method: "POST" }, token);
+}
+
+export async function deleteReadNotifications(token: string) {
+  return request<{ ok: boolean }>("/me/read", { method: "DELETE" }, token);
+}
+
+export function unreadNotificationCount(items: ScrollsNotification[]) {
+  return items.reduce((count, item) => count + (item.isRead ? 0 : 1), 0);
 }
 
 // ── Owner post management (Phase 3) ─────────────────────────────────────────

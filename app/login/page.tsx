@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BrandMark } from "@/components/BrandMark";
 import { login } from "@/lib/api/scrolls";
@@ -13,7 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
     setError(null);
@@ -59,6 +60,10 @@ export default function LoginPage() {
         >
           {loading ? "Logging in..." : "Log in"}
         </button>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-white/55">
+          <Link href="/signup" className="font-bold text-white">Create account</Link>
+          <Link href="/password-reset" className="font-bold text-white">Forgot password?</Link>
+        </div>
       </form>
     </div>
   );

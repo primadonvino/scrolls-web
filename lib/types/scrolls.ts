@@ -113,6 +113,15 @@ export type AuthSession = {
   user: ScrollsUser;
 };
 
+export type SignupPayload = {
+  username: string;
+  email: string;
+  password: string;
+  dateOfBirth: string;
+  accountType?: "personal" | "business";
+  parentalControls?: Record<string, unknown>;
+};
+
 export type FeedResponse = {
   posts?: ScrollsPost[];
   items?: ScrollsPost[];
@@ -129,4 +138,21 @@ export type CreatePostResponse = {
   ok: boolean;
   id?: UUID;
   idempotent?: boolean;
+};
+
+export type ScrollsNotification = {
+  id: UUID;
+  userID: UUID;
+  type: string;
+  title: string;
+  message: string;
+  actorID?: UUID | null;
+  objectID?: UUID | null;
+  createdAt: string;
+  isRead: boolean;
+};
+
+export type NotificationsResponse = {
+  items: ScrollsNotification[];
+  nextCursor?: string | null;
 };
