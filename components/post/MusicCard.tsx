@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlayer } from "@/components/player/PlayerProvider";
-import { postCoverURL } from "@/lib/media/urls";
+import { postCoverURL, postMediaURL } from "@/lib/media/urls";
 import {
   formatDuration,
   formatReleaseDate,
@@ -33,6 +33,21 @@ export function MusicCard({ post }: { post: ScrollsPost }) {
 
   const activeTrackId = player.current?.id ?? null;
   const lyricsTrack = music.tracks.find((t) => t.id === lyricsTrackId) ?? null;
+  // Podcasts (and single-file audio posts) keep their audio in the post asset
+  // rather than the [MUSIC_TRACKS] payload, so fall back to it for playback.
+  const hasTrackAudio = music.tracks.some((t) => t.audioURL);
+  const fallbackAudioURL = !hasTrackAudio ? postMediaURL(post) : null;
+
+  function playFallback() {
+    if (!fallbackAudioURL) return;
+    player.play({
+      id: post.id,
+      title: music.title ?? (music.isPodcast ? "Podcast" : "Audio"),
+      subtitle: music.isPodcast ? "Podcast" : "Music",
+      artworkURL: cover,
+      audioURL: fallbackAudioURL
+    });
+  }
 
   function playTrack(track: MusicTrack) {
     if (!track.audioURL) return;
@@ -98,6 +113,19 @@ export function MusicCard({ post }: { post: ScrollsPost }) {
               />
             ))}
           </ol>
+        ) : null}
+
+        {fallbackAudioURL ? (
+          <button
+            type="button"
+            onClick={playFallback}
+            className={`mt-4 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${
+              activeTrackId === post.id ? "bg-scrolls-gold text-black" : "bg-white/10 text-white hover:bg-white/20"
+            }`}
+          >
+            <span className="text-base leading-none">▶</span>
+            {activeTrackId === post.id ? "Playing" : music.isPodcast ? "Play episode" : "Play"}
+          </button>
         ) : null}
 
         {lyricsTrack?.lyrics ? (
