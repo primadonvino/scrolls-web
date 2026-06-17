@@ -1,55 +1,9 @@
 import Link from "next/link";
 import { AppCTA } from "@/components/AppCTA";
-import { Avatar } from "@/components/Avatar";
 import { BrandMark } from "@/components/BrandMark";
 import { SiteHeader } from "@/components/SiteHeader";
-import { UserBadges } from "@/components/UserBadges";
-import { fetchFeed, fetchPost, fetchProfile } from "@/lib/api/scrolls";
-import { postMediaURL } from "@/lib/media/urls";
-import { isMusicOrPodcast, strippedCaption } from "@/lib/music/markers";
-import { isArticlePost } from "@/lib/article/article";
-import type { ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
 
-const FEATURE_USERNAME = "primadonvino";
-
-function isPhotoPost(post: ScrollsPost): boolean {
-  const type = post.mediaPreview?.type ?? post.type;
-  if (type !== "photo") return false;
-  if (isMusicOrPodcast(post) || isArticlePost(post)) return false;
-  const url = postMediaURL(post);
-  return Boolean(url) && !/\.mp4($|\?)/i.test(url ?? "");
-}
-
-/**
- * Loads a real photo post from the featured profile for the landing preview.
- * `/posts/by-author` needs auth, so we use anonymously-readable sources: the
- * profile's pinned post (via /posts/by-id) and the public feed.
- */
-async function loadFeaturedPost(): Promise<{ profile: ScrollsUser; post: ScrollsPost } | null> {
-  const profile = await fetchProfile(FEATURE_USERNAME).catch(() => null);
-
-  // 1) Pinned post — by-id is anon-readable.
-  const pinnedID = profile?.pinnedPostID ?? profile?.pinned_post_id;
-  if (pinnedID) {
-    const pinned = await fetchPost(pinnedID).catch(() => null);
-    if (pinned && isPhotoPost(pinned)) {
-      return { profile: profile ?? (pinned.author ?? pinned.user)!, post: pinned };
-    }
-  }
-
-  // 2) Otherwise scan the public feed for the featured user's first photo post.
-  const feed = await fetchFeed().catch(() => ({ posts: [] as ScrollsPost[], nextCursor: null }));
-  const post = feed.posts.find((candidate) => {
-    const author = candidate.author ?? candidate.user;
-    return author?.username?.toLowerCase() === FEATURE_USERNAME && isPhotoPost(candidate);
-  });
-  if (post) return { profile: profile ?? (post.author ?? post.user)!, post };
-  return null;
-}
-
-export default async function HomePage() {
-  const featured = await loadFeaturedPost();
-
+export default function HomePage() {
   return (
     <div>
       <SiteHeader />
@@ -87,87 +41,23 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="scrolls-glass overflow-hidden rounded-[2rem] p-4">
-          <div className="rounded-[1.6rem] border border-white/[0.08] bg-black p-4">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Main Feed</p>
-                <p className="mt-1 text-2xl font-black text-white">Open scrolls anywhere</p>
-              </div>
-              <Link href="/signup" className="rounded-full bg-white px-4 py-2 text-xs font-black text-black">
-                Join Scrolls
-              </Link>
-            </div>
-            {featured ? (
-              <FeaturedPostPreview profile={featured.profile} post={featured.post} />
-            ) : (
-              <MockPreview />
-            )}
+        <div className="flex flex-col items-center justify-center gap-7 py-6">
+          <div className="relative">
+            <div className="absolute -inset-8 rounded-[3.5rem] bg-[#e6309b]/25 blur-3xl" aria-hidden />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/icon.png"
+              alt="Scrolls"
+              width={320}
+              height={320}
+              className="relative w-60 rounded-[2.75rem] shadow-glow sm:w-80"
+            />
           </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function FeaturedPostPreview({ profile, post }: { profile: ScrollsUser; post: ScrollsPost }) {
-  const author = post.author ?? profile;
-  const displayName = author.displayName ?? author.display_name ?? author.username ?? "Scrolls";
-  const username = author.username ?? FEATURE_USERNAME;
-  const city = post.locationCity ?? post.location_city ?? author.homeCity ?? author.home_city ?? null;
-  const image = postMediaURL(post);
-  const caption = strippedCaption(post.caption);
-
-  return (
-    <div className="rounded-[1.35rem] border border-white/[0.08] bg-scrolls-panel p-4">
-      <div className="mb-4 flex items-center gap-3">
-        <Avatar user={author} size={48} />
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="truncate text-lg font-black">{displayName}</p>
-            <UserBadges user={author} size={16} />
-          </div>
-          <p className="truncate text-sm text-white/50">
-            @{username}
-            {city ? ` · ${city}` : ""}
+          <p className="text-center text-sm font-bold uppercase tracking-[0.26em] text-scrolls-gold">
+            Create freely · Discover deeply · Stay connected
           </p>
         </div>
-      </div>
-      {image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={image} alt={caption ?? "Scroll"} className="aspect-[4/5] w-full rounded-[1.2rem] object-cover" />
-      ) : null}
-      {caption ? <p className="mt-3 line-clamp-2 text-sm leading-6 text-white/75">{caption}</p> : null}
-      <div className="mt-4 flex items-center justify-between border-t border-white/[0.08] pt-3 text-sm">
-        <span className="text-white/45">scrolls.adastra.love</span>
-        <Link href={`/scroll/${post.id}`} className="font-bold text-white">Open scroll</Link>
-      </div>
-    </div>
-  );
-}
-
-function MockPreview() {
-  return (
-    <div className="rounded-[1.35rem] border border-white/[0.08] bg-scrolls-panel p-4">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-scrolls-gold text-sm font-black text-black">TT</div>
-        <div className="min-w-0">
-          <p className="truncate text-lg font-black">Toni Todaro</p>
-          <p className="truncate text-sm text-white/50">@primadonvino · Wichita</p>
-        </div>
-      </div>
-      <div className="aspect-[4/5] rounded-[1.2rem] bg-gradient-to-b from-white/[0.08] to-white/[0.02]">
-        <div className="flex h-full items-end p-5">
-          <div>
-            <p className="scrolls-wordmark text-5xl text-white">Scrolls</p>
-            <p className="mt-2 max-w-xs text-sm leading-6 text-white/62">A live web preview that sends people back into the app when they are ready to post, reply, or join the conversation.</p>
-          </div>
-        </div>
-      </div>
-      <div className="mt-4 flex items-center justify-between border-t border-white/[0.08] pt-3 text-sm">
-        <span className="text-white/45">scrolls.adastra.love</span>
-        <Link href="/user/primadonvino" className="font-bold text-white">View profile</Link>
-      </div>
+      </section>
     </div>
   );
 }
