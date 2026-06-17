@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { fetchPost } from "@/lib/api/scrolls";
 import { parseArticle } from "@/lib/article/article";
 import { parseMusicPost, photoCarouselURLs, releaseTypeLabel, strippedCaption } from "@/lib/music/markers";
+import { postJsonLd } from "@/lib/seo/postJsonLd";
 import type { ScrollsPost } from "@/lib/types/scrolls";
 
 const BASE = process.env.NEXT_PUBLIC_SCROLLS_WEB_BASE_URL ?? "https://scrolls.adastra.love";
@@ -94,6 +95,12 @@ export default async function ScrollPage({ params }: Params) {
       <section className="mx-auto grid min-h-[70svh] max-w-2xl gap-6 px-5 py-10">
         {post ? (
           <>
+            {(() => {
+              const jsonLd = postJsonLd(post);
+              return jsonLd ? (
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+              ) : null;
+            })()}
             <div className="text-center">
               <p className="text-sm uppercase tracking-[0.22em] text-scrolls-gold">Shared scroll</p>
               <h1 className="mt-3 text-4xl font-black">View this post on Scrolls</h1>
