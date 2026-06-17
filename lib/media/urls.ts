@@ -20,6 +20,20 @@ export function userAvatarURL(user?: ScrollsUser | null) {
   );
 }
 
+/** Normalizes a stored ref/object-key into an absolute media URL. */
+export function normalizedAssetURL(ref?: string | null) {
+  const trimmed = ref?.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `${mediaBase}/${trimmed.replace(/^\//, "")}`;
+}
+
+/** A profile's looping video avatar, when one is set. */
+export function userAvatarVideoURL(user?: ScrollsUser | null) {
+  if (!user) return null;
+  return normalizedAssetURL(user.avatarVideoRef ?? user.avatar_video_ref);
+}
+
 export function postMediaURL(post: ScrollsPost) {
   const preview = post.mediaPreview;
   return (

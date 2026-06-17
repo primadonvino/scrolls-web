@@ -1,6 +1,6 @@
-import { Avatar } from "@/components/Avatar";
 import { AppCTA } from "@/components/AppCTA";
 import { ProfileActions } from "@/components/profile/ProfileActions";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import type { ScrollsUser } from "@/lib/types/scrolls";
 
 export function ProfileHeader({ profile }: { profile: ScrollsUser }) {
@@ -11,18 +11,18 @@ export function ProfileHeader({ profile }: { profile: ScrollsUser }) {
   const cashAppURL = profile.cashAppURL ?? profile.cashappURL ?? profile.cashapp_url ?? null;
   return (
     <section className="scrolls-glass rounded-[1.8rem] p-6">
-      <div className="flex items-center gap-4">
-        <Avatar user={profile} size={84} />
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-3xl font-black">{displayName}</h1>
-            {(profile.isFounder ?? profile.is_founder) && <span className="rounded-full bg-scrolls-gold px-2 py-1 text-xs font-bold text-black">Founder</span>}
-            {(profile.isVerified ?? profile.is_verified) && <span className="rounded-full bg-scrolls-blue px-2 py-1 text-xs font-bold">Verified</span>}
-            {isGold && <span className="rounded-full border border-scrolls-gold px-2 py-1 text-xs font-bold text-scrolls-gold">Gold</span>}
-          </div>
-          <p className="text-white/60">@{profile.username}</p>
-          {profile.homeCity || profile.home_city ? <p className="mt-1 text-sm text-white/50">{profile.homeCity ?? profile.home_city}</p> : null}
+      <div className="mx-auto w-full max-w-sm">
+        <ProfileAvatar profile={profile} />
+      </div>
+      <div className="mt-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-3xl font-black">{displayName}</h1>
+          {(profile.isFounder ?? profile.is_founder) && <span className="rounded-full bg-scrolls-gold px-2 py-1 text-xs font-bold text-black">Founder</span>}
+          {(profile.isVerified ?? profile.is_verified) && <span className="rounded-full bg-scrolls-blue px-2 py-1 text-xs font-bold">Verified</span>}
+          {isGold && <span className="rounded-full border border-scrolls-gold px-2 py-1 text-xs font-bold text-scrolls-gold">Gold</span>}
         </div>
+        <p className="text-white/60">@{profile.username}</p>
+        {profile.homeCity || profile.home_city ? <p className="mt-1 text-sm text-white/50">{profile.homeCity ?? profile.home_city}</p> : null}
       </div>
       {profile.bio ? <p className="mt-5 whitespace-pre-wrap text-white/80">{profile.bio}</p> : null}
       {websiteURL || venmoURL || cashAppURL ? (

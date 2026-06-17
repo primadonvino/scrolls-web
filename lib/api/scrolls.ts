@@ -112,9 +112,16 @@ export async function fetchProfile(username: string, token?: string) {
 }
 
 export async function fetchAuthorPosts(authorID: string, token?: string) {
-  const params = new URLSearchParams({ author_id: authorID, limit: "40" });
-  const result = await request<{ posts?: ScrollsPost[] } | ScrollsPost[]>(`/posts/by-author?${params}`, { cache: "no-store" }, token);
-  return Array.isArray(result) ? result : result.posts ?? [];
+  // The backend matches author_id case-sensitively on a lowercased UUID
+  // (mirrors the iOS/Android clients); not lowercasing returns an empty list.
+  const params = new URLSearchParams({ author_id: authorID.toLowerCase(), limit: "40" });
+  const result = await request<{ posts?: ScrollsPost[]; items?: ScrollsPost[] } | ScrollsPost[]>(
+    `/posts/by-author?${params}`,
+    { cache: "no-store" },
+    token
+  );
+  if (Array.isArray(result)) return result;
+  return result.posts ?? result.items ?? [];
 }
 
 function isWrappedPostResponse(

@@ -14,6 +14,10 @@ export type ScrollsUser = {
   avatar_bucket?: string;
   avatarObjectKey?: string;
   avatar_object_key?: string;
+  avatarVideoRef?: string | null;
+  avatar_video_ref?: string | null;
+  signatureRef?: string | null;
+  signature_ref?: string | null;
   isVerified?: boolean;
   is_verified?: boolean;
   isFounder?: boolean;
@@ -85,6 +89,8 @@ export type ScrollsPost = {
   created_at?: string;
   author?: ScrollsUser;
   user?: ScrollsUser;
+  rescrollOrigin?: RescrollOrigin | null;
+  rescroll_origin?: RescrollOrigin | null;
   comments?: unknown[];
   mediaPreview?: {
     type?: string;
@@ -93,6 +99,14 @@ export type ScrollsPost = {
     audio?: { url?: string };
     text?: { cachedText?: string };
   };
+};
+
+export type RescrollOrigin = {
+  postID: string;
+  user?: ScrollsUser;
+  caption?: string | null;
+  websiteURL?: string | null;
+  timestamp?: string;
 };
 
 export type ScrollsComment = {
