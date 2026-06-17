@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { blockUser, followUser, reportContent, unfollowUser } from "@/lib/api/scrolls";
-import { readFreshSession, readSession } from "@/lib/auth/session";
+import { clearSession, readFreshSession, readSession } from "@/lib/auth/session";
 import type { AuthSession, ScrollsUser } from "@/lib/types/scrolls";
 
 // The public profile payload doesn't carry follow state, so we track it
@@ -11,6 +12,7 @@ import type { AuthSession, ScrollsUser } from "@/lib/types/scrolls";
 type Relationship = "unknown" | "none" | "requested" | "following";
 
 export function ProfileActions({ profile }: { profile: ScrollsUser }) {
+  const router = useRouter();
   const [session, setSession] = useState<AuthSession | null>(() => readSession());
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -89,9 +91,31 @@ export function ProfileActions({ profile }: { profile: ScrollsUser }) {
     }
   }
 
+  function logOut() {
+    clearSession();
+    router.push("/login");
+  }
+
   return (
     <div className="mt-6">
       <div className="flex flex-wrap gap-3">
+        {signedIn && isSelf ? (
+          <>
+            <Link href="/account/edit" className="rounded-full bg-white px-5 py-3 text-sm font-black text-black">
+              Edit profile
+            </Link>
+            <Link href="/account" className="rounded-full border border-white/20 px-5 py-3 text-sm font-bold text-white/85">
+              Account settings
+            </Link>
+            <button
+              type="button"
+              onClick={logOut}
+              className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-white/75"
+            >
+              Log out
+            </button>
+          </>
+        ) : null}
         <a href={`scrolls://user/${profile.username}`} className="rounded-full bg-scrolls-blue px-5 py-3 text-sm font-bold">
           Open in Scrolls
         </a>

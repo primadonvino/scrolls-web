@@ -11,10 +11,12 @@ export function SiteHeader() {
   // Auth state lives in localStorage, so resolve it after mount to avoid a
   // server/client markup mismatch.
   const [signedIn, setSignedIn] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
 
   useEffect(() => {
     const session = readSession();
     setSignedIn(Boolean(session?.token && session.user?.id));
+    setUsername(session?.user?.username ?? null);
   }, []);
 
   return (
@@ -31,7 +33,12 @@ export function SiteHeader() {
               <Link href="/compose" className="hidden transition hover:text-white sm:inline">Create</Link>
               <Link href="/circles" className="hidden transition hover:text-white sm:inline">Circles</Link>
               <NotificationBell />
-              <Link href="/account" className="hidden transition hover:text-white sm:inline">Account</Link>
+              <Link
+                href={username ? `/user/${encodeURIComponent(username)}` : "/account"}
+                className="hidden transition hover:text-white sm:inline"
+              >
+                Account
+              </Link>
             </>
           ) : (
             <>
