@@ -6,12 +6,12 @@
 // page and serve it when a navigation fails while offline. Everything else
 // passes straight through to the network.
 
-const CACHE = "scrolls-shell-v1";
+const CACHE = "scrolls-shell-v2";
 const OFFLINE_URL = "/offline";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll([OFFLINE_URL, "/icon.svg"]))
+    caches.open(CACHE).then((cache) => cache.addAll([OFFLINE_URL, "/icon.png"]))
   );
   self.skipWaiting();
 });
