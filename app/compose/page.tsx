@@ -3,13 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Avatar } from "@/components/Avatar";
+import { ArticleComposer } from "@/components/compose/ArticleComposer";
 import { MusicComposer } from "@/components/compose/MusicComposer";
+import { PodcastComposer } from "@/components/compose/PodcastComposer";
 import { SiteHeader } from "@/components/SiteHeader";
 import { createMediaPost, createTextPost, uploadPostMedia } from "@/lib/api/scrolls";
 import { readFreshSession, readSession } from "@/lib/auth/session";
 import type { AuthSession } from "@/lib/types/scrolls";
 
-type Mode = "text" | "photo" | "video" | "music";
+type Mode = "text" | "photo" | "video" | "music" | "podcast" | "article";
 
 const MAX_TEXT = 2000;
 const MAX_CAPTION = 220;
@@ -168,8 +170,8 @@ export default function ComposePage() {
               </div>
             </div>
 
-            <div className="mt-4 flex gap-2">
-              {(["text", "photo", "video", "music"] as Mode[]).map((value) => (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {(["text", "photo", "video", "music", "podcast", "article"] as Mode[]).map((value) => (
                 <button
                   key={value}
                   type="button"
@@ -185,6 +187,10 @@ export default function ComposePage() {
 
             {mode === "music" ? (
               <MusicComposer onPosted={() => router.push("/feed")} />
+            ) : mode === "podcast" ? (
+              <PodcastComposer onPosted={() => router.push("/feed")} />
+            ) : mode === "article" ? (
+              <ArticleComposer onPosted={() => router.push("/feed")} />
             ) : (
             <form onSubmit={publish}>
             {mode === "text" ? (

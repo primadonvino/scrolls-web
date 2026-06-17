@@ -362,6 +362,121 @@ export async function createMusicPost(
   }, token);
 }
 
+/**
+ * Publishes a podcast. Mirrors the iOS `publishPodcast` flow: the audio is the
+ * post asset (type "audio"), the caption is `[PODCAST] {title}`, and the cover
+ * art goes in the cover fields. No new backend support.
+ */
+export async function createPodcastPost(
+  params: { authorID: string; caption?: string | null; cover: File; audio: File },
+  token: string
+): Promise<CreatePostResponse> {
+  const postID = crypto.randomUUID();
+  const owner = params.authorID.toLowerCase();
+
+  const coverType = params.cover.type || "image/jpeg";
+  const coverExt = coverType.includes("png") ? "png" : "jpg";
+  const coverToken = await requestUploadToken(token, {
+    contentType: coverType,
+    objectKey: `posts/${owner}/${postID}/cover/${postID}.${coverExt}`,
+    maxBytes: 25 * 1024 * 1024
+  });
+  await uploadFileToR2(coverToken, params.cover);
+
+  const audioType = params.audio.type || "audio/mpeg";
+  const audioExt = AUDIO_EXT[audioType] ?? "m4a";
+  const assetToken = await requestUploadToken(token, {
+    contentType: audioType,
+    objectKey: `posts/${owner}/${postID}/asset/${postID}.${audioExt}`,
+    maxBytes: 200 * 1024 * 1024
+  });
+  await uploadFileToR2(assetToken, params.audio);
+
+  const caption = buildMusicCaption({ isPodcast: true, caption: params.caption ?? null, tracks: [] });
+
+  return request<CreatePostResponse>("/posts", {
+    method: "POST",
+    body: JSON.stringify({
+      id: postID,
+      authorID: params.authorID,
+      user_id: params.authorID,
+      type: "audio",
+      caption,
+      websiteURL: null,
+      locationCity: null,
+      textBody: null,
+      assetProvider: assetToken.provider,
+      assetBucket: assetToken.bucket,
+      assetObjectKey: assetToken.objectKey,
+      coverProvider: coverToken.provider,
+      coverBucket: coverToken.bucket,
+      coverObjectKey: coverToken.objectKey,
+      aspectRatio: null,
+      createdAt: new Date().toISOString()
+    })
+  }, token);
+}
+
+export type ArticleBlockInput = { id: string; kind: "paragraph" | "subheadline" | "sectionHeading"; text: string };
+
+/**
+ * Publishes a long-form article. Mirrors the iOS/Android flow: upload the cover,
+ * encode the payload into the text body behind `[ARTICLE_JSON]`, and create a
+ * TEXT post captioned `[ARTICLE] {headline}`.
+ */
+export async function createArticlePost(
+  params: { authorID: string; headline: string; blocks: ArticleBlockInput[]; cover: File },
+  token: string
+): Promise<CreatePostResponse> {
+  const headline = params.headline.trim();
+  if (!headline) throw new Error("Articles need a headline.");
+  const blocks = params.blocks
+    .map((block) => ({ ...block, text: block.text.trim() }))
+    .filter((block) => block.text.length > 0);
+  if (!blocks.length) throw new Error("Articles need content.");
+
+  const postID = crypto.randomUUID();
+  const owner = params.authorID.toLowerCase();
+
+  const coverType = params.cover.type || "image/jpeg";
+  const coverExt = coverType.includes("png") ? "png" : "jpg";
+  const coverToken = await requestUploadToken(token, {
+    contentType: coverType,
+    objectKey: `posts/${owner}/${postID}/cover/${postID}.${coverExt}`,
+    maxBytes: 25 * 1024 * 1024
+  });
+  const coverURL = await uploadFileToR2(coverToken, params.cover);
+
+  const textBody = `[ARTICLE_JSON]${JSON.stringify({
+    headline,
+    blocks,
+    coverImageRef: coverURL,
+    coverImageAspectRatio: null
+  })}`;
+
+  return request<CreatePostResponse>("/posts", {
+    method: "POST",
+    body: JSON.stringify({
+      id: postID,
+      authorID: params.authorID,
+      user_id: params.authorID,
+      type: "text",
+      caption: `[ARTICLE] ${headline}`,
+      websiteURL: null,
+      locationCity: null,
+      textBody,
+      assetProvider: null,
+      assetBucket: null,
+      assetObjectKey: null,
+      coverProvider: coverToken.provider,
+      coverBucket: coverToken.bucket,
+      coverObjectKey: coverToken.objectKey,
+      aspectRatio: null,
+      createdAt: new Date().toISOString()
+    })
+  }, token);
+}
+
 export type MusicTrackEdit = {
   /** Stable id of an existing track; omitted/null for newly added tracks. */
   id?: string | null;
