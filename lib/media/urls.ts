@@ -51,6 +51,7 @@ export function postCoverURL(post: ScrollsPost) {
   return (
     post.coverImageRef ??
     post.cover_image_ref ??
+    objectURL(post.coverBucket ?? post.cover_bucket, post.coverObjectKey ?? post.cover_object_key) ??
     postMediaURL(post)
   );
 }

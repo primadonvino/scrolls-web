@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { MediaRenderer } from "@/components/media/MediaRenderer";
+import { ArticleCard } from "@/components/post/ArticleCard";
 import { MusicCard } from "@/components/post/MusicCard";
 import { PostActions } from "@/components/post/PostActions";
+import { isArticlePost } from "@/lib/article/article";
 import { isMusicOrPodcast, strippedCaption } from "@/lib/music/markers";
 import type { ScrollsPost } from "@/lib/types/scrolls";
 
@@ -23,6 +25,7 @@ export function PostCard({
   const username = author?.username ?? "user";
   const [caption, setCaption] = useState(post.caption ?? "");
   const isMusic = isMusicOrPodcast(post);
+  const isArticle = !isMusic && isArticlePost(post);
   const displayCaption = strippedCaption(caption);
 
   return (
@@ -36,12 +39,14 @@ export function PostCard({
       </Link>
       {isMusic ? (
         <MusicCard post={post} />
+      ) : isArticle ? (
+        <ArticleCard post={post} />
       ) : (
         <Link href={`/scroll/${post.id}`} className="block">
           <MediaRenderer post={post} />
         </Link>
       )}
-      {!isMusic && displayCaption ? (
+      {!isMusic && !isArticle && displayCaption ? (
         <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-white/85">{displayCaption}</p>
       ) : null}
       <PostActions

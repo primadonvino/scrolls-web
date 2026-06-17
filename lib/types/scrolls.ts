@@ -83,6 +83,12 @@ export type ScrollsPost = {
   asset_object_key?: string | null;
   coverImageRef?: string | null;
   cover_image_ref?: string | null;
+  coverProvider?: string | null;
+  cover_provider?: string | null;
+  coverBucket?: string | null;
+  cover_bucket?: string | null;
+  coverObjectKey?: string | null;
+  cover_object_key?: string | null;
   aspectRatio?: number | null;
   aspect_ratio?: number | null;
   createdAt?: string;
@@ -118,6 +124,31 @@ export type ScrollsComment = {
   likedBy?: UUID[];
   liked_by?: UUID[];
   replies?: ScrollsComment[];
+};
+
+export type ScrollsCircleMember = {
+  id: string;
+  user: ScrollsUser;
+  status?: string;
+};
+
+export type ScrollsCircleMessage = {
+  id: string;
+  user: ScrollsUser;
+  /** Device-local AES-GCM ciphertext — NOT decryptable on the web. */
+  encryptedText?: string;
+  createdAt?: string;
+  sharedPostID?: string | null;
+  voiceObjectKey?: string | null;
+};
+
+export type ScrollsCircle = {
+  id: string;
+  name?: string;
+  avatarRef?: string | null;
+  members?: ScrollsCircleMember[];
+  messages?: ScrollsCircleMessage[];
+  createdAt?: string;
 };
 
 export type AuthSession = {

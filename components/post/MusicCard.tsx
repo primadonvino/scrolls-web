@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { usePlayer } from "@/components/player/PlayerProvider";
 import { postCoverURL } from "@/lib/media/urls";
 import {
   formatDuration,
@@ -21,7 +22,7 @@ import type { ScrollsPost } from "@/lib/types/scrolls";
 export function MusicCard({ post }: { post: ScrollsPost }) {
   const music = useMemo(() => parseMusicPost(post.caption), [post.caption]);
   const cover = postCoverURL(post);
-  const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
+  const player = usePlayer();
   const [lyricsTrackId, setLyricsTrackId] = useState<string | null>(null);
 
   const badge = music.isPodcast ? "🎙 Podcast" : "♪ Music";
@@ -30,8 +31,19 @@ export function MusicCard({ post }: { post: ScrollsPost }) {
   const releaseDate = formatReleaseDate(music.releaseDate);
   const metaBits = [music.genre, music.recordLabel, releaseDate].filter(Boolean) as string[];
 
-  const activeTrack = music.tracks.find((t) => t.id === activeTrackId) ?? null;
+  const activeTrackId = player.current?.id ?? null;
   const lyricsTrack = music.tracks.find((t) => t.id === lyricsTrackId) ?? null;
+
+  function playTrack(track: MusicTrack) {
+    if (!track.audioURL) return;
+    player.play({
+      id: track.id,
+      title: track.title,
+      subtitle: music.title ?? (music.isPodcast ? "Podcast" : "Music"),
+      artworkURL: cover,
+      audioURL: track.audioURL
+    });
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-scrolls-panel">
@@ -75,7 +87,7 @@ export function MusicCard({ post }: { post: ScrollsPost }) {
                 index={index + 1}
                 track={track}
                 isActive={track.id === activeTrackId}
-                onPlay={track.audioURL ? () => setActiveTrackId(track.id) : undefined}
+                onPlay={track.audioURL ? () => playTrack(track) : undefined}
                 hasLyrics={Boolean(track.lyrics)}
                 lyricsOpen={track.id === lyricsTrackId}
                 onToggleLyrics={
@@ -94,13 +106,6 @@ export function MusicCard({ post }: { post: ScrollsPost }) {
               Lyrics · {lyricsTrack.title}
             </p>
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/80">{lyricsTrack.lyrics}</p>
-          </div>
-        ) : null}
-
-        {activeTrack?.audioURL ? (
-          <div className="mt-3">
-            <p className="mb-1 truncate text-xs text-white/50">Now playing · {activeTrack.title}</p>
-            <audio key={activeTrack.id} src={activeTrack.audioURL} controls autoPlay className="w-full" />
           </div>
         ) : null}
 

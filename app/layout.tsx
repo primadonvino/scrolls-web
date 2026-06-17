@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PlayerProvider } from "@/components/player/PlayerProvider";
 import "./globals.css";
 
 const appStoreURL = process.env.NEXT_PUBLIC_SCROLLS_APP_STORE_URL ?? "https://apps.apple.com/us/app/scrolls/id6761082441";
@@ -28,7 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <main className="safe-shell">{children}</main>
+        <PlayerProvider>
+          <main className="safe-shell">{children}</main>
+        </PlayerProvider>
       </body>
     </html>
   );
