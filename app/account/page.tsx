@@ -93,6 +93,12 @@ export default function AccountPage() {
                 >
                   Edit profile
                 </a>
+                <a
+                  href="/account/social"
+                  className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-white/85 transition hover:bg-white/10"
+                >
+                  Followers &amp; requests
+                </a>
                 <button
                   type="button"
                   onClick={signOut}

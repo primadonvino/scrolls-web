@@ -2,14 +2,19 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { blockUser, followUser, reportContent } from "@/lib/api/scrolls";
+import { blockUser, followUser, reportContent, unfollowUser } from "@/lib/api/scrolls";
 import { readFreshSession, readSession } from "@/lib/auth/session";
 import type { AuthSession, ScrollsUser } from "@/lib/types/scrolls";
+
+// The public profile payload doesn't carry follow state, so we track it
+// optimistically after the viewer acts. "unknown" shows the default Follow CTA.
+type Relationship = "unknown" | "none" | "requested" | "following";
 
 export function ProfileActions({ profile }: { profile: ScrollsUser }) {
   const [session, setSession] = useState<AuthSession | null>(() => readSession());
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [relationship, setRelationship] = useState<Relationship>("unknown");
   const signedIn = Boolean(session?.token && session.user?.id);
   const isSelf = session?.user?.id === profile.id;
 
@@ -21,9 +26,32 @@ export function ProfileActions({ profile }: { profile: ScrollsUser }) {
     setStatus(null);
     try {
       const result = await followUser(freshSession.user.id, profile.id, freshSession.token);
+      setRelationship(result.requested ? "requested" : "following");
       setStatus(result.requested ? "Follow request sent." : "Following.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not follow this profile.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function unfollow() {
+    const freshSession = await readFreshSession();
+    setSession(freshSession);
+    if (!freshSession?.token || !freshSession.user?.id || isSelf) return;
+    setBusy("unfollow");
+    setStatus(null);
+    try {
+      const result = await unfollowUser(freshSession.user.id, profile.id, freshSession.token);
+      if (result.required) {
+        setRelationship("following");
+        setStatus("Founder accounts are required follows.");
+      } else {
+        setRelationship("none");
+        setStatus("Unfollowed.");
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not unfollow this profile.");
     } finally {
       setBusy(null);
     }
@@ -74,14 +102,34 @@ export function ProfileActions({ profile }: { profile: ScrollsUser }) {
         ) : null}
         {signedIn && !isSelf ? (
           <>
-            <button
-              type="button"
-              disabled={busy === "follow"}
-              onClick={follow}
-              className="rounded-full bg-white px-5 py-3 text-sm font-black text-black disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {busy === "follow" ? "Following..." : "Follow"}
-            </button>
+            {relationship === "following" ? (
+              <button
+                type="button"
+                disabled={busy === "unfollow"}
+                onClick={unfollow}
+                className="rounded-full border border-white/20 px-5 py-3 text-sm font-bold text-white/85 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {busy === "unfollow" ? "Unfollowing..." : "Unfollow"}
+              </button>
+            ) : relationship === "requested" ? (
+              <button
+                type="button"
+                disabled={busy === "unfollow"}
+                onClick={unfollow}
+                className="rounded-full border border-white/20 px-5 py-3 text-sm font-bold text-white/70 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {busy === "unfollow" ? "..." : "Requested · Cancel"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={busy === "follow"}
+                onClick={follow}
+                className="rounded-full bg-white px-5 py-3 text-sm font-black text-black disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {busy === "follow" ? "Following..." : "Follow"}
+              </button>
+            )}
             <button
               type="button"
               disabled={busy === "block"}

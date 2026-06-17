@@ -255,15 +255,43 @@ export async function fetchComments(postID: string, token?: string) {
   return request<ScrollsComment[]>(`/posts/${encodeURIComponent(postID)}/comments`, { cache: "no-store" }, token);
 }
 
-export async function createComment(postID: string, authorID: string, body: string, token: string) {
+export async function createComment(
+  postID: string,
+  authorID: string,
+  body: string,
+  token: string,
+  parentCommentID?: string | null
+) {
   return request<{ ok: boolean; id?: string }>("/comments", {
     method: "POST",
     body: JSON.stringify({
       id: crypto.randomUUID(),
       postID,
       authorID,
+      parentCommentID: parentCommentID ?? null,
       body
     })
+  }, token);
+}
+
+export async function likeComment(commentID: string, userID: string, token: string) {
+  return request<{ ok: boolean }>("/comments/like", {
+    method: "POST",
+    body: JSON.stringify({ commentID, userID })
+  }, token);
+}
+
+export async function unlikeComment(commentID: string, userID: string, token: string) {
+  return request<{ ok: boolean }>("/comments/unlike", {
+    method: "POST",
+    body: JSON.stringify({ commentID, userID })
+  }, token);
+}
+
+export async function deleteComment(commentID: string, requesterID: string, token: string) {
+  return request<{ ok: boolean }>("/comments/delete", {
+    method: "DELETE",
+    body: JSON.stringify({ commentID, requesterID })
   }, token);
 }
 
@@ -279,6 +307,34 @@ export async function followUser(followerID: string, followeeID: string, token: 
     method: "POST",
     body: JSON.stringify({ followerID, followeeID })
   }, token);
+}
+
+export async function unfollowUser(followerID: string, followeeID: string, token: string) {
+  return request<{ ok: boolean; required?: boolean }>("/follows/delete", {
+    method: "DELETE",
+    body: JSON.stringify({ followerID, followeeID })
+  }, token);
+}
+
+export async function respondToFollowRequest(followeeID: string, followerID: string, accept: boolean, token: string) {
+  return request<{ ok: boolean; status?: string }>("/follows/respond", {
+    method: "POST",
+    body: JSON.stringify({ followeeID, followerID, accept })
+  }, token);
+}
+
+export async function fetchFollowing(userID: string, token?: string) {
+  const params = new URLSearchParams({ user_id: userID });
+  return request<ScrollsUser[]>(`/me/following?${params}`, { cache: "no-store" }, token);
+}
+
+export async function fetchFollowers(userID: string, token?: string) {
+  const params = new URLSearchParams({ user_id: userID });
+  return request<ScrollsUser[]>(`/me/followers?${params}`, { cache: "no-store" }, token);
+}
+
+export async function fetchFollowRequests(token: string) {
+  return request<ScrollsUser[]>("/me/follow-requests", { cache: "no-store" }, token);
 }
 
 export async function reportContent(

@@ -7,10 +7,14 @@ import {
   blockUser,
   createComment,
   createRescroll,
+  deleteComment,
   deletePost,
   fetchComments,
+  likeComment,
+  reportContent,
   reportPost,
   setPinnedPost,
+  unlikeComment,
   updateCaption
 } from "@/lib/api/scrolls";
 import { readFreshSession, readSession } from "@/lib/auth/session";
@@ -39,6 +43,12 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
   const [comments, setComments] = useState<ScrollsComment[]>([]);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
   const [commentBody, setCommentBody] = useState("");
+  // Per-comment interaction state (reply / report / in-flight action).
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyBody, setReplyBody] = useState("");
+  const [reportingId, setReportingId] = useState<string | null>(null);
+  const [commentReportReason, setCommentReportReason] = useState("spam");
+  const [commentBusyId, setCommentBusyId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("spam");
@@ -150,6 +160,83 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
       setStatus(error instanceof Error ? error.message : "Could not post comment.");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function refreshComments(token?: string) {
+    const loaded = await fetchComments(post.id, token);
+    setComments(loaded);
+    setCommentsLoaded(true);
+  }
+
+  async function submitReply(parentCommentID: string) {
+    const body = replyBody.trim();
+    const freshSession = await readFreshSession();
+    setSession(freshSession);
+    if (!freshSession?.token || !freshSession.user?.id || !body) return;
+    setCommentBusyId(parentCommentID);
+    setStatus(null);
+    try {
+      await createComment(post.id, freshSession.user.id, body, freshSession.token, parentCommentID);
+      setReplyBody("");
+      setReplyingTo(null);
+      await refreshComments(freshSession.token);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not post reply.");
+    } finally {
+      setCommentBusyId(null);
+    }
+  }
+
+  async function toggleCommentLike(comment: ScrollsComment) {
+    const freshSession = await readFreshSession();
+    setSession(freshSession);
+    if (!freshSession?.token || !freshSession.user?.id) return;
+    const userID = freshSession.user.id;
+    const liked = commentLikedBy(comment).includes(userID);
+    setCommentBusyId(comment.id);
+    setStatus(null);
+    try {
+      if (liked) await unlikeComment(comment.id, userID, freshSession.token);
+      else await likeComment(comment.id, userID, freshSession.token);
+      await refreshComments(freshSession.token);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not update like.");
+    } finally {
+      setCommentBusyId(null);
+    }
+  }
+
+  async function removeComment(comment: ScrollsComment) {
+    const freshSession = await readFreshSession();
+    setSession(freshSession);
+    if (!freshSession?.token || !freshSession.user?.id) return;
+    setCommentBusyId(comment.id);
+    setStatus(null);
+    try {
+      await deleteComment(comment.id, freshSession.user.id, freshSession.token);
+      await refreshComments(freshSession.token);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not delete comment.");
+    } finally {
+      setCommentBusyId(null);
+    }
+  }
+
+  async function reportComment(comment: ScrollsComment) {
+    const freshSession = await readFreshSession();
+    setSession(freshSession);
+    if (!freshSession?.token) return;
+    setCommentBusyId(comment.id);
+    setStatus(null);
+    try {
+      await reportContent("comment", comment.id, commentReportReason, freshSession.token, comment.author?.id);
+      setReportingId(null);
+      setStatus("Report sent. Thank you.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not report comment.");
+    } finally {
+      setCommentBusyId(null);
     }
   }
 
@@ -356,7 +443,32 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
             <p className="p-3 text-sm text-white/45">No comments yet.</p>
           ) : null}
           <div className="space-y-3">
-            {comments.map((comment) => <CommentRow key={comment.id} comment={comment} />)}
+            {comments.map((comment) => (
+              <CommentRow
+                key={comment.id}
+                comment={comment}
+                ctx={{
+                  currentUserId: session?.user?.id,
+                  postOwnerId: authorID,
+                  isSignedIn,
+                  busyId: commentBusyId,
+                  replyingTo,
+                  replyBody,
+                  setReplyBody,
+                  startReply: (id) => { setReplyingTo(id); setReplyBody(""); },
+                  cancelReply: () => setReplyingTo(null),
+                  submitReply,
+                  toggleLike: toggleCommentLike,
+                  removeComment,
+                  reportingId,
+                  commentReportReason,
+                  setCommentReportReason,
+                  startReport: (id) => { setReportingId(id); setCommentReportReason("spam"); },
+                  cancelReport: () => setReportingId(null),
+                  submitReport: reportComment
+                }}
+              />
+            ))}
           </div>
           <form onSubmit={submitComment} className="mt-4 flex gap-2">
             <input
@@ -381,30 +493,150 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
   );
 }
 
-function CommentRow({ comment, depth = 0 }: { comment: ScrollsComment; depth?: number }) {
+type CommentCtx = {
+  currentUserId?: string;
+  postOwnerId?: string;
+  isSignedIn: boolean;
+  busyId: string | null;
+  replyingTo: string | null;
+  replyBody: string;
+  setReplyBody: (value: string) => void;
+  startReply: (id: string) => void;
+  cancelReply: () => void;
+  submitReply: (parentCommentID: string) => void | Promise<void>;
+  toggleLike: (comment: ScrollsComment) => void | Promise<void>;
+  removeComment: (comment: ScrollsComment) => void | Promise<void>;
+  reportingId: string | null;
+  commentReportReason: string;
+  setCommentReportReason: (value: string) => void;
+  startReport: (id: string) => void;
+  cancelReport: () => void;
+  submitReport: (comment: ScrollsComment) => void | Promise<void>;
+};
+
+function CommentRow({ comment, ctx, depth = 0 }: { comment: ScrollsComment; ctx: CommentCtx; depth?: number }) {
   const author = comment.author;
   const displayName = author.displayName ?? author.display_name ?? author.username;
   const username = author.username;
   const replies = comment.replies ?? [];
+  const likes = commentLikedBy(comment);
+  const likedByMe = Boolean(ctx.currentUserId && likes.includes(ctx.currentUserId));
+  const canDelete = Boolean(
+    ctx.currentUserId && (ctx.currentUserId === author?.id || ctx.currentUserId === ctx.postOwnerId)
+  );
+  const busy = ctx.busyId === comment.id;
+  const replying = ctx.replyingTo === comment.id;
+  const reporting = ctx.reportingId === comment.id;
+
   return (
-    <div className={depth ? "ml-8 border-l border-white/10 pl-3" : ""}>
+    <div className={depth ? "ml-6 border-l border-white/10 pl-3 sm:ml-8" : ""}>
       <div className="flex gap-3">
         <Avatar user={author} size={34} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="font-bold text-white">{displayName}</p>
+            <Link href={`/user/${username}`} className="font-bold text-white hover:underline">{displayName}</Link>
             <p className="text-sm text-white/42">@{username}</p>
           </div>
           <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-white/76">{comment.body}</p>
+
+          {/* Action row */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-white/50">
+            <button
+              type="button"
+              disabled={!ctx.isSignedIn || busy}
+              onClick={() => ctx.toggleLike(comment)}
+              className="transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {likedByMe ? "♥" : "♡"} {likes.length > 0 ? likes.length : "Like"}
+            </button>
+            {ctx.isSignedIn ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => (replying ? ctx.cancelReply() : ctx.startReply(comment.id))}
+                className="transition hover:text-white disabled:opacity-40"
+              >
+                {replying ? "Cancel" : "Reply"}
+              </button>
+            ) : null}
+            {canDelete ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => ctx.removeComment(comment)}
+                className="text-red-300/80 transition hover:text-red-200 disabled:opacity-40"
+              >
+                {busy ? "..." : "Delete"}
+              </button>
+            ) : null}
+            {ctx.isSignedIn && !canDelete ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => (reporting ? ctx.cancelReport() : ctx.startReport(comment.id))}
+                className="transition hover:text-white disabled:opacity-40"
+              >
+                {reporting ? "Cancel" : "Report"}
+              </button>
+            ) : null}
+          </div>
+
+          {reporting ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select
+                value={ctx.commentReportReason}
+                onChange={(event) => ctx.setCommentReportReason(event.target.value)}
+                className="rounded-full border border-white/10 bg-black px-3 py-1.5 text-xs text-white outline-none"
+              >
+                {reportReasons.map((reason) => (
+                  <option key={reason.value} value={reason.value}>{reason.label}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => ctx.submitReport(comment)}
+                className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-black disabled:opacity-45"
+              >
+                {busy ? "Reporting..." : "Send report"}
+              </button>
+            </div>
+          ) : null}
+
+          {replying ? (
+            <form
+              onSubmit={(event) => { event.preventDefault(); ctx.submitReply(comment.id); }}
+              className="mt-2 flex gap-2"
+            >
+              <input
+                value={ctx.replyBody}
+                onChange={(event) => ctx.setReplyBody(event.target.value)}
+                placeholder={`Reply to @${username}`}
+                maxLength={320}
+                className="min-w-0 flex-1 rounded-full border border-white/10 bg-black px-4 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/30"
+              />
+              <button
+                type="submit"
+                disabled={!ctx.replyBody.trim() || busy}
+                className="rounded-full bg-scrolls-blue px-4 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {busy ? "..." : "Reply"}
+              </button>
+            </form>
+          ) : null}
         </div>
       </div>
       {replies.length ? (
         <div className="mt-3 space-y-3">
-          {replies.map((reply) => <CommentRow key={reply.id} comment={reply} depth={depth + 1} />)}
+          {replies.map((reply) => <CommentRow key={reply.id} comment={reply} ctx={ctx} depth={depth + 1} />)}
         </div>
       ) : null}
     </div>
   );
+}
+
+function commentLikedBy(comment: ScrollsComment): string[] {
+  return comment.likedBy ?? comment.liked_by ?? [];
 }
 
 function countComments(comments: ScrollsComment[]): number {
