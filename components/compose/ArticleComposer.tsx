@@ -8,24 +8,30 @@ const COVER_TYPES = ["image/jpeg", "image/png"];
 const MAX_COVER_BYTES = 25 * 1024 * 1024;
 const MAX_HEADLINE = 160;
 
-/** Splits free-form body text into paragraph blocks (blank line = new block). */
-function bodyToBlocks(body: string): ArticleBlockInput[] {
-  return body
-    .split(/\n{2,}/)
-    .map((chunk) => chunk.trim())
-    .filter(Boolean)
-    .map((text) => ({ id: crypto.randomUUID(), kind: "paragraph" as const, text }));
+type BlockKind = ArticleBlockInput["kind"];
+
+type BlockDraft = { key: string; kind: BlockKind; text: string };
+
+const KIND_OPTIONS: { value: BlockKind; label: string }[] = [
+  { value: "paragraph", label: "Paragraph" },
+  { value: "sectionHeading", label: "Section heading" },
+  { value: "subheadline", label: "Subheadline" }
+];
+
+function newBlock(kind: BlockKind = "paragraph"): BlockDraft {
+  return { key: crypto.randomUUID(), kind, text: "" };
 }
 
 /**
- * Composer for publishing a long-form magazine article — a headline, a cover
- * image, and a body that's split into paragraph blocks behind `[ARTICLE_JSON]`.
+ * Composer for publishing a long-form magazine article with the same block
+ * styles as the mobile app — paragraphs, section headings, and subheadlines —
+ * encoded behind `[ARTICLE_JSON]`.
  */
 export function ArticleComposer({ onPosted }: { onPosted: () => void }) {
   const [cover, setCover] = useState<File | null>(null);
   const [coverURL, setCoverURL] = useState<string | null>(null);
   const [headline, setHeadline] = useState("");
-  const [body, setBody] = useState("");
+  const [blocks, setBlocks] = useState<BlockDraft[]>(() => [newBlock("paragraph")]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -48,16 +54,44 @@ export function ArticleComposer({ onPosted }: { onPosted: () => void }) {
     setCoverURL(URL.createObjectURL(picked));
   }
 
-  const canPost = !busy && Boolean(cover) && headline.trim().length > 0 && body.trim().length > 0;
+  function updateBlock(key: string, patch: Partial<BlockDraft>) {
+    setBlocks((current) => current.map((block) => (block.key === key ? { ...block, ...patch } : block)));
+  }
+
+  function addBlock(kind: BlockKind) {
+    setBlocks((current) => [...current, newBlock(kind)]);
+  }
+
+  function removeBlock(key: string) {
+    setBlocks((current) => (current.length <= 1 ? current : current.filter((block) => block.key !== key)));
+  }
+
+  function moveBlock(key: string, direction: -1 | 1) {
+    setBlocks((current) => {
+      const index = current.findIndex((block) => block.key === key);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  const filledBlocks = blocks.filter((block) => block.text.trim().length > 0);
+  const canPost = !busy && Boolean(cover) && headline.trim().length > 0 && filledBlocks.length > 0;
 
   async function publish() {
     if (!cover) {
       setError("Add a cover image.");
       return;
     }
-    const blocks = bodyToBlocks(body);
-    if (!headline.trim() || !blocks.length) {
-      setError("Add a headline and some body text.");
+    const payloadBlocks: ArticleBlockInput[] = filledBlocks.map((block) => ({
+      id: block.key,
+      kind: block.kind,
+      text: block.text
+    }));
+    if (!headline.trim() || !payloadBlocks.length) {
+      setError("Add a headline and some content.");
       return;
     }
     const session = await readFreshSession();
@@ -69,7 +103,7 @@ export function ArticleComposer({ onPosted }: { onPosted: () => void }) {
     setError(null);
     try {
       await createArticlePost(
-        { authorID: session.user.id, headline: headline.trim(), blocks, cover },
+        { authorID: session.user.id, headline: headline.trim(), blocks: payloadBlocks, cover },
         session.token
       );
       onPosted();
@@ -111,14 +145,95 @@ export function ArticleComposer({ onPosted }: { onPosted: () => void }) {
 
       <div>
         <p className="mb-2 text-sm font-bold text-white/70">Body</p>
-        <textarea
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          placeholder="Write your article. Separate paragraphs with a blank line."
-          rows={12}
-          className="w-full resize-none rounded-2xl border border-white/10 bg-black px-4 py-3 text-[15px] leading-relaxed text-white/90 outline-none placeholder:text-white/30 focus:border-white/30"
-        />
-        <p className="mt-1 text-xs text-white/40">Blank lines start new paragraphs.</p>
+        <div className="space-y-3">
+          {blocks.map((block, index) => (
+            <div key={block.key} className="rounded-2xl border border-white/10 bg-black/30 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <select
+                  value={block.kind}
+                  onChange={(event) => updateBlock(block.key, { kind: event.target.value as BlockKind })}
+                  className="rounded-lg border border-white/10 bg-black px-2 py-1.5 text-xs font-bold text-white outline-none focus:border-white/30"
+                >
+                  {KIND_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="flex-1" />
+                <button
+                  type="button"
+                  onClick={() => moveBlock(block.key, -1)}
+                  disabled={index === 0}
+                  className="px-1.5 text-white/50 enabled:hover:text-white disabled:opacity-25"
+                  aria-label="Move up"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveBlock(block.key, 1)}
+                  disabled={index === blocks.length - 1}
+                  className="px-1.5 text-white/50 enabled:hover:text-white disabled:opacity-25"
+                  aria-label="Move down"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeBlock(block.key)}
+                  disabled={blocks.length <= 1}
+                  className="px-1.5 text-red-300/70 enabled:hover:text-red-300 disabled:opacity-25"
+                  aria-label="Remove block"
+                >
+                  ✕
+                </button>
+              </div>
+              <textarea
+                value={block.text}
+                onChange={(event) => updateBlock(block.key, { text: event.target.value })}
+                placeholder={
+                  block.kind === "sectionHeading"
+                    ? "Section heading"
+                    : block.kind === "subheadline"
+                      ? "Subheadline"
+                      : "Paragraph text"
+                }
+                rows={block.kind === "paragraph" ? 4 : 1}
+                className={`w-full resize-none rounded-lg border border-white/10 bg-black px-3 py-2 text-white outline-none placeholder:text-white/30 focus:border-white/30 ${
+                  block.kind === "sectionHeading"
+                    ? "text-lg font-black"
+                    : block.kind === "subheadline"
+                      ? "text-base font-bold"
+                      : "text-[15px] leading-relaxed"
+                }`}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => addBlock("paragraph")}
+            className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white/80 hover:bg-white/10"
+          >
+            + Paragraph
+          </button>
+          <button
+            type="button"
+            onClick={() => addBlock("sectionHeading")}
+            className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white/80 hover:bg-white/10"
+          >
+            + Section heading
+          </button>
+          <button
+            type="button"
+            onClick={() => addBlock("subheadline")}
+            className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white/80 hover:bg-white/10"
+          >
+            + Subheadline
+          </button>
+        </div>
       </div>
 
       {error ? <p className="text-sm text-red-200">{error}</p> : null}
