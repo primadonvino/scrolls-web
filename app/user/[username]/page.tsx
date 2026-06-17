@@ -5,26 +5,28 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfilePosts } from "@/components/profile/ProfilePosts";
 import { SiteHeader } from "@/components/SiteHeader";
 import { fetchAuthorPosts, fetchProfile } from "@/lib/api/scrolls";
-import { userAvatarURL } from "@/lib/media/urls";
+
+const BASE = process.env.NEXT_PUBLIC_SCROLLS_WEB_BASE_URL ?? "https://scrolls.adastra.love";
 
 type Params = { params: Promise<{ username: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { username } = await params;
+  const url = `${BASE}/user/${encodeURIComponent(username)}`;
+  // og:image / twitter:image come from the sibling opengraph-image route.
   try {
     const profile = await fetchProfile(username);
     const displayName = profile.displayName ?? profile.display_name ?? profile.username;
+    const description = profile.bio?.trim() || `View @${profile.username} on Scrolls.`;
     return {
       title: `${displayName} (@${profile.username})`,
-      description: profile.bio || `View @${profile.username} on Scrolls.`,
-      openGraph: {
-        title: `${displayName} on Scrolls`,
-        description: profile.bio || `View @${profile.username} on Scrolls.`,
-        images: userAvatarURL(profile) ? [userAvatarURL(profile)!] : undefined
-      }
+      description,
+      alternates: { canonical: url },
+      openGraph: { title: `${displayName} on Scrolls`, description, url, siteName: "Scrolls", type: "profile" },
+      twitter: { card: "summary_large_image", title: `${displayName} on Scrolls`, description }
     };
   } catch {
-    return { title: `@${username}` };
+    return { title: `@${username}`, alternates: { canonical: url } };
   }
 }
 

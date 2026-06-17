@@ -6,10 +6,12 @@ import { Avatar } from "@/components/Avatar";
 import { MediaRenderer } from "@/components/media/MediaRenderer";
 import { ArticleCard } from "@/components/post/ArticleCard";
 import { MusicCard } from "@/components/post/MusicCard";
+import { PhotoCarousel } from "@/components/post/PhotoCarousel";
 import { PostActions } from "@/components/post/PostActions";
 import { UserBadges } from "@/components/UserBadges";
 import { isArticlePost } from "@/lib/article/article";
-import { isMusicOrPodcast, strippedCaption } from "@/lib/music/markers";
+import { postMediaURL } from "@/lib/media/urls";
+import { isMusicOrPodcast, photoCarouselURLs, strippedCaption } from "@/lib/music/markers";
 import type { ScrollsPost } from "@/lib/types/scrolls";
 
 export function PostCard({
@@ -32,6 +34,11 @@ export function PostCard({
   const isMusic = isMusicOrPodcast(post);
   const isArticle = !isMusic && isArticlePost(post);
   const displayCaption = strippedCaption(caption);
+  const carouselExtras = !isMusic && !isArticle ? photoCarouselURLs(post.caption) : [];
+  const carouselImages = carouselExtras.length
+    ? ([postMediaURL(post), ...carouselExtras].filter(Boolean) as string[])
+    : [];
+  const isCarousel = carouselImages.length > 1;
 
   return (
     <article className="scrolls-glass relative rounded-[1.8rem] p-4 has-[details[open]]:z-30">
@@ -58,6 +65,8 @@ export function PostCard({
         <MusicCard post={post} />
       ) : isArticle ? (
         <ArticleCard post={post} />
+      ) : isCarousel ? (
+        <PhotoCarousel images={carouselImages} alt={displayCaption ?? undefined} />
       ) : (
         <Link href={`/scroll/${post.id}`} className="block">
           <MediaRenderer post={post} />
