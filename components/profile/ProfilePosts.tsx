@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PostCard } from "@/components/post/PostCard";
 import { fetchAuthorPosts } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
+import { POST_CATEGORIES, postMatchesCategory, type PostCategory } from "@/lib/post/category";
 import type { ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
 
 type Tab = "scrolls" | "rescrolls";
@@ -29,6 +30,7 @@ export function ProfilePosts({
 }) {
   const [posts, setPosts] = useState<ScrollsPost[]>(initialPosts);
   const [tab, setTab] = useState<Tab>("scrolls");
+  const [category, setCategory] = useState<PostCategory>("all");
   const [loading, setLoading] = useState(initialPosts.length === 0);
 
   useEffect(() => {
@@ -56,11 +58,13 @@ export function ProfilePosts({
   const shown = pinnedPostId ? posts.filter((post) => post.id !== pinnedPostId) : posts;
   const scrolls = shown.filter((post) => !isRescroll(post));
   const rescrolls = shown.filter(isRescroll);
-  const visible = tab === "scrolls" ? scrolls : rescrolls;
+  const tabList = tab === "scrolls" ? scrolls : rescrolls;
+  const visible = category === "all" ? tabList : tabList.filter((post) => postMatchesCategory(post, category));
+  const categoryLabel = POST_CATEGORIES.find((option) => option.value === category)?.label ?? "All Scrolls";
 
   return (
     <div className="mt-8">
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {(["scrolls", "rescrolls"] as Tab[]).map((value) => (
           <button
             key={value}
@@ -75,13 +79,42 @@ export function ProfilePosts({
             {value === "rescrolls" && rescrolls.length ? ` ${rescrolls.length}` : ""}
           </button>
         ))}
+
+        <details className="group relative ml-auto">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-white/12 px-4 py-2 text-sm font-bold text-white/80 transition hover:bg-white/10">
+            {categoryLabel}
+            <span className="text-white/40 transition group-open:rotate-180">⌄</span>
+          </summary>
+          <div className="absolute right-0 z-30 mt-2 w-52 overflow-hidden rounded-2xl border border-white/10 bg-scrolls-panel p-1 shadow-glow">
+            {POST_CATEGORIES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={(event) => {
+                  setCategory(option.value);
+                  event.currentTarget.closest("details")?.removeAttribute("open");
+                }}
+                className={`block w-full rounded-xl px-4 py-2.5 text-left text-sm font-bold transition hover:bg-white/10 ${
+                  category === option.value ? "text-scrolls-gold" : "text-white/85"
+                }`}
+              >
+                {category === option.value ? "✓ " : ""}
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </details>
       </div>
 
       {loading ? (
         <p className="text-white/50">Loading posts…</p>
       ) : visible.length === 0 ? (
         <p className="text-white/50">
-          {tab === "scrolls" ? `@${profile.username} hasn't posted any scrolls yet.` : "No rescrolls yet."}
+          {category !== "all"
+            ? `No ${categoryLabel.toLowerCase()} here.`
+            : tab === "scrolls"
+              ? `@${profile.username} hasn't posted any scrolls yet.`
+              : "No rescrolls yet."}
         </p>
       ) : (
         <div className="space-y-6">
