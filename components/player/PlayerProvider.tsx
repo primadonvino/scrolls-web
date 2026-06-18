@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown, ChevronUp, Music, Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 
 export type PlayerTrack = {
@@ -159,7 +160,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={current.artworkURL} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
               ) : (
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-black/40 text-lg">♪</div>
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-black/40 text-white/70">
+                  <Music size={18} />
+                </div>
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-white">{current.title}</p>
@@ -172,13 +175,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               aria-label={isPlaying ? "Pause" : "Play"}
               className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-black"
             >
-              {isPlaying ? "❚❚" : "▶"}
+              {isPlaying ? <Pause size={16} className="fill-current" /> : <Play size={16} className="fill-current" />}
             </button>
-            <button type="button" onClick={expand} aria-label="Expand player" className="shrink-0 px-1 text-white/55 hover:text-white">
-              ⌃
+            <button type="button" onClick={expand} aria-label="Expand player" className="grid h-8 w-8 shrink-0 place-items-center text-white/55 hover:text-white">
+              <ChevronUp size={20} />
             </button>
-            <button type="button" onClick={close} aria-label="Close player" className="shrink-0 px-1 text-white/45 hover:text-white">
-              ✕
+            <button type="button" onClick={close} aria-label="Close player" className="grid h-8 w-8 shrink-0 place-items-center text-white/45 hover:text-white">
+              <X size={18} />
             </button>
           </div>
           <input
@@ -198,8 +201,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 z-[70] overflow-y-auto bg-scrolls-black/95 backdrop-blur-2xl">
           <div className="mx-auto max-w-md px-6 pb-12 pt-5">
             <div className="flex items-center justify-between">
-              <button type="button" onClick={() => setExpanded(false)} aria-label="Collapse" className="text-2xl text-white/70 hover:text-white">
-                ⌄
+              <button type="button" onClick={() => setExpanded(false)} aria-label="Collapse" className="grid h-9 w-9 place-items-center text-white/70 hover:text-white">
+                <ChevronDown size={26} />
               </button>
               <button type="button" onClick={close} aria-label="Stop" className="text-sm font-bold text-white/55 hover:text-white">
                 Close
@@ -211,7 +214,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={current.artworkURL} alt="" className="h-full w-full object-cover" />
               ) : (
-                <div className="grid h-full w-full place-items-center text-7xl">♪</div>
+                <div className="grid h-full w-full place-items-center text-white/40">
+                  <Music size={88} />
+                </div>
               )}
             </div>
 
@@ -240,26 +245,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 onClick={prev}
                 disabled={!hasQueue}
                 aria-label="Previous"
-                className="text-3xl text-white/85 disabled:opacity-30"
+                className="grid h-12 w-12 place-items-center text-white/85 transition hover:text-white disabled:opacity-30"
               >
-                ⏮
+                <SkipBack size={30} className="fill-current" />
               </button>
               <button
                 type="button"
                 onClick={toggle}
                 aria-label={isPlaying ? "Pause" : "Play"}
-                className="grid h-16 w-16 place-items-center rounded-full bg-white text-2xl text-black"
+                className="grid h-16 w-16 place-items-center rounded-full bg-white text-black"
               >
-                {isPlaying ? "❚❚" : "▶"}
+                {isPlaying ? <Pause size={28} className="fill-current" /> : <Play size={28} className="fill-current" />}
               </button>
               <button
                 type="button"
                 onClick={next}
                 disabled={index >= queue.length - 1}
                 aria-label="Next"
-                className="text-3xl text-white/85 disabled:opacity-30"
+                className="grid h-12 w-12 place-items-center text-white/85 transition hover:text-white disabled:opacity-30"
               >
-                ⏭
+                <SkipForward size={30} className="fill-current" />
               </button>
             </div>
 
@@ -297,7 +302,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                         <span className={`min-w-0 flex-1 truncate text-sm ${i === index ? "text-white" : "text-white/80"}`}>
                           {track.title}
                         </span>
-                        {i === index && isPlaying ? <span className="text-xs text-scrolls-gold">▶</span> : null}
+                        {i === index && isPlaying ? <Play size={13} className="fill-current text-scrolls-gold" /> : null}
                       </button>
                     </li>
                   ))}
