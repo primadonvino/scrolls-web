@@ -14,8 +14,7 @@ type Page = { kind: "photo"; url: string } | { kind: "video"; url: string };
 export function ProfileAvatar({ profile }: { profile: ScrollsUser }) {
   const photo = userAvatarURL(profile);
   const video = userAvatarVideoURL(profile);
-  const name = profile.displayName ?? profile.display_name ?? profile.username ?? "?";
-  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  const name = profile.displayName ?? profile.display_name ?? profile.username ?? "Scrolls";
 
   const pages: Page[] = [];
   if (photo) pages.push({ kind: "photo", url: photo });
@@ -50,7 +49,8 @@ export function ProfileAvatar({ profile }: { profile: ScrollsUser }) {
       onPointerUp={multi ? onPointerUp : undefined}
     >
       {!active ? (
-        <div className="grid h-full w-full place-items-center text-6xl font-black text-white/85">{initial}</div>
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/icon.png" alt={name} className="h-full w-full object-cover" />
       ) : active.kind === "photo" ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={active.url} alt={name} draggable={false} className="h-full w-full object-cover" />

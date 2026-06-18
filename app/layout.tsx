@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { PlayerProvider } from "@/components/player/PlayerProvider";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
-import { ThemeProvider, themeInitScript } from "@/components/theme/ThemeProvider";
+import { THEME_STORAGE_KEY, ThemeProvider, themeInitScript } from "@/components/theme/ThemeProvider";
 import "./globals.css";
 
 const appStoreURL = process.env.NEXT_PUBLIC_SCROLLS_APP_STORE_URL ?? "https://apps.apple.com/us/app/scrolls/id6761082441";
@@ -37,9 +38,14 @@ export const viewport: Viewport = {
   themeColor: "#020203"
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Render per-request so the theme cookie sets <html data-theme> with no flash.
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieTheme = (await cookies()).get(THEME_STORAGE_KEY)?.value;
+  const theme = cookieTheme === "light" || cookieTheme === "cheetah" || cookieTheme === "dark" ? cookieTheme : "dark";
   return (
-    <html lang="en" data-theme="dark">
+    <html lang="en" data-theme={theme}>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <ThemeProvider>

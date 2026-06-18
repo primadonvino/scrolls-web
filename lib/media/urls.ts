@@ -13,11 +13,16 @@ export function objectURL(bucket?: string | null, objectKey?: string | null) {
 
 export function userAvatarURL(user?: ScrollsUser | null) {
   if (!user) return null;
-  return (
+  const base =
     user.avatarRef ??
     user.avatar_ref ??
-    objectURL(user.avatarBucket ?? user.avatar_bucket, user.avatarObjectKey ?? user.avatar_object_key)
-  );
+    objectURL(user.avatarBucket ?? user.avatar_bucket, user.avatarObjectKey ?? user.avatar_object_key);
+  if (!base) return null;
+  // Cache-bust on profile updates so a changed avatar syncs across the web
+  // instead of serving a stale cached image.
+  const version = user.updatedAt ?? user.updated_at ?? user.writeVersion;
+  if (version && !base.includes("?")) return `${base}?v=${encodeURIComponent(String(version))}`;
+  return base;
 }
 
 /** Normalizes a stored ref/object-key into an absolute media URL. */
