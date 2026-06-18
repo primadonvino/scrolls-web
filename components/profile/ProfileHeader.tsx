@@ -1,4 +1,3 @@
-import { AppCTA } from "@/components/AppCTA";
 import { ProfileActions } from "@/components/profile/ProfileActions";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { UserBadges } from "@/components/UserBadges";
@@ -31,9 +30,6 @@ export function ProfileHeader({ profile }: { profile: ScrollsUser }) {
         </div>
       ) : null}
       <ProfileActions profile={profile} />
-      <div className="mt-3 flex flex-wrap gap-3">
-        <AppCTA />
-      </div>
     </section>
   );
 }
