@@ -1,14 +1,24 @@
 "use client";
 
-import { Menu, X } from "lucide-react";
+import { Home, Menu, Pen, Radio, Search, User, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { AppCTA } from "@/components/AppCTA";
 import { NotificationBell } from "@/components/NotificationBell";
 import { readSession } from "@/lib/auth/session";
 
-type NavLink = { href: string; label: string };
+type NavLink = { href: string; label: string; icon: ReactNode };
+
+/** Two interlocking circles — the Circles brand mark. */
+function CirclesIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <circle cx="9" cy="12" r="6" />
+      <circle cx="15" cy="12" r="6" />
+    </svg>
+  );
+}
 
 export function SiteHeader() {
   // Auth state lives in localStorage, so resolve it after mount to avoid a
@@ -26,18 +36,17 @@ export function SiteHeader() {
   const accountHref = username ? `/user/${encodeURIComponent(username)}` : "/account";
   const links: NavLink[] = signedIn
     ? [
-        { href: "/feed", label: "Feed" },
-        { href: "/search", label: "Search" },
-        { href: "/live", label: "Live" },
-        { href: "/compose", label: "Create" },
-        { href: "/circles", label: "Circles" },
-        { href: accountHref, label: "Profile" }
+        { href: "/search", label: "Search", icon: <Search size={20} /> },
+        { href: "/feed", label: "Feed", icon: <Home size={20} /> },
+        { href: "/live", label: "Live", icon: <Radio size={20} /> },
+        { href: "/circles", label: "Circles", icon: <CirclesIcon size={20} /> },
+        { href: "/compose", label: "Create", icon: <Pen size={20} /> },
+        { href: accountHref, label: "Profile", icon: <User size={20} /> }
       ]
     : [
-        { href: "/feed", label: "Feed" },
-        { href: "/search", label: "Search" },
-        { href: "/signup", label: "Sign up" },
-        { href: "/login", label: "Log in" }
+        { href: "/search", label: "Search", icon: <Search size={20} /> },
+        { href: "/feed", label: "Feed", icon: <Home size={20} /> },
+        { href: "/live", label: "Live", icon: <Radio size={20} /> }
       ];
 
   return (
@@ -47,15 +56,30 @@ export function SiteHeader() {
           <BrandMark compact />
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-4 text-sm font-semibold text-white/68 sm:flex">
+        {/* Desktop nav — icon buttons */}
+        <nav className="hidden items-center gap-1 text-white/68 sm:flex">
           {links.map((link) => (
-            <Link key={link.href} href={link.href} className="transition hover:text-white">
-              {link.label}
+            <Link
+              key={link.href}
+              href={link.href}
+              title={link.label}
+              aria-label={link.label}
+              className="grid h-10 w-10 place-items-center rounded-full transition hover:bg-white/10 hover:text-white"
+            >
+              {link.icon}
             </Link>
           ))}
-          {signedIn ? <NotificationBell /> : null}
-          <AppCTA label="Get the app" />
+          {signedIn ? (
+            <NotificationBell />
+          ) : (
+            <>
+              <Link href="/signup" className="ml-1 text-sm font-semibold text-white/80 transition hover:text-white">Sign up</Link>
+              <Link href="/login" className="text-sm font-semibold text-white/80 transition hover:text-white">Log in</Link>
+            </>
+          )}
+          <div className="ml-1">
+            <AppCTA label="Get the app" />
+          </div>
         </nav>
 
         {/* Mobile controls */}
@@ -73,7 +97,7 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — icon + label rows */}
       {menuOpen ? (
         <nav className="border-t border-white/[0.06] px-5 py-3 sm:hidden">
           <div className="flex flex-col gap-1">
@@ -82,11 +106,22 @@ export function SiteHeader() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="rounded-xl px-3 py-3 text-base font-bold text-white/85 transition hover:bg-white/10"
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-base font-bold text-white/85 transition hover:bg-white/10"
               >
+                <span className="text-white/70">{link.icon}</span>
                 {link.label}
               </Link>
             ))}
+            {!signedIn ? (
+              <>
+                <Link href="/signup" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-3 text-base font-bold text-white/85 transition hover:bg-white/10">
+                  Sign up
+                </Link>
+                <Link href="/login" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-3 text-base font-bold text-white/85 transition hover:bg-white/10">
+                  Log in
+                </Link>
+              </>
+            ) : null}
             <div className="mt-2 px-1">
               <AppCTA label="Get the app" />
             </div>
