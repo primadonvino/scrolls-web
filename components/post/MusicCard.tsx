@@ -49,15 +49,28 @@ export function MusicCard({ post }: { post: ScrollsPost }) {
     });
   }
 
+  const author = post.author ?? post.user;
+  const username = author?.username;
+  const subtitle = [username ? `@${username}` : null, music.title ?? (music.isPodcast ? "Podcast" : "Music")]
+    .filter(Boolean)
+    .join(" · ");
+
   function playTrack(track: MusicTrack) {
     if (!track.audioURL) return;
-    player.play({
-      id: track.id,
-      title: track.title,
-      subtitle: music.title ?? (music.isPodcast ? "Podcast" : "Music"),
-      artworkURL: cover,
-      audioURL: track.audioURL
-    });
+    const playable = music.tracks.filter((t) => t.audioURL);
+    const startIndex = playable.findIndex((t) => t.id === track.id);
+    if (startIndex < 0) return;
+    player.playQueue(
+      playable.map((t) => ({
+        id: t.id,
+        title: t.title,
+        subtitle,
+        artworkURL: cover,
+        audioURL: t.audioURL as string,
+        lyrics: t.lyrics ?? null
+      })),
+      startIndex
+    );
   }
 
   return (
