@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { userAvatarURL, userAvatarVideoURL } from "@/lib/media/urls";
+import { userAvatarURL, userAvatarVideoURL, userSignatureURL } from "@/lib/media/urls";
 import type { ScrollsUser } from "@/lib/types/scrolls";
 
 type Page = { kind: "photo"; url: string } | { kind: "video"; url: string };
@@ -14,6 +14,7 @@ type Page = { kind: "photo"; url: string } | { kind: "video"; url: string };
 export function ProfileAvatar({ profile }: { profile: ScrollsUser }) {
   const photo = userAvatarURL(profile);
   const video = userAvatarVideoURL(profile);
+  const signature = userSignatureURL(profile);
   const name = profile.displayName ?? profile.display_name ?? profile.username ?? "Scrolls";
 
   const pages: Page[] = [];
@@ -65,6 +66,15 @@ export function ProfileAvatar({ profile }: { profile: ScrollsUser }) {
           playsInline
         />
       )}
+
+      {signature ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={signature}
+          alt="Signature"
+          className="pointer-events-none absolute right-3 top-3 h-16 w-16 object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+        />
+      ) : null}
 
       {multi ? (
         <>

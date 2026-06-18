@@ -39,6 +39,12 @@ export function userAvatarVideoURL(user?: ScrollsUser | null) {
   return normalizedAssetURL(user.avatarVideoRef ?? user.avatar_video_ref);
 }
 
+/** A profile's signature image overlay, when one is set. */
+export function userSignatureURL(user?: ScrollsUser | null) {
+  if (!user) return null;
+  return normalizedAssetURL(user.signatureRef ?? user.signature_ref);
+}
+
 export function postMediaURL(post: ScrollsPost) {
   const preview = post.mediaPreview;
   return (
