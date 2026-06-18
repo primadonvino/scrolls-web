@@ -8,7 +8,7 @@ import { UserBadges } from "@/components/UserBadges";
 import { searchPosts, searchUsers } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
 import { parseArticle } from "@/lib/article/article";
-import { postCoverURL, postMediaURL } from "@/lib/media/urls";
+import { postPosterURL } from "@/lib/media/urls";
 import { parseMusicPost, strippedCaption } from "@/lib/music/markers";
 import type { ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
 
@@ -179,19 +179,22 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+function Thumb({ src, className }: { src: string | null; className: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) {
+    return <div className={`${className} bg-gradient-to-br from-scrolls-panel2 to-black`} />;
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt="" onError={() => setFailed(true)} className={`${className} object-cover`} />;
+}
+
 function ListRow({ post, label, title }: { post: ScrollsPost; label: string; title: string }) {
-  const cover = postCoverURL(post);
   return (
     <Link
       href={`/scroll/${post.id}`}
       className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3 transition hover:bg-white/[0.07]"
     >
-      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-black/40">
-        {cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" className="h-full w-full object-cover" />
-        ) : null}
-      </div>
+      <Thumb src={postPosterURL(post)} className="h-14 w-14 shrink-0 overflow-hidden rounded-xl" />
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-scrolls-gold">{label}</p>
         <p className="truncate font-bold text-white">{title}</p>
@@ -202,16 +205,10 @@ function ListRow({ post, label, title }: { post: ScrollsPost; label: string; tit
 }
 
 function PostTile({ post }: { post: ScrollsPost }) {
-  const image = postCoverURL(post) ?? postMediaURL(post);
   const caption = strippedCaption(post.caption);
   return (
     <Link href={`/scroll/${post.id}`} className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] transition hover:bg-white/[0.07]">
-      {image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={image} alt="" className="aspect-square w-full object-cover" />
-      ) : (
-        <div className="aspect-square w-full bg-gradient-to-br from-scrolls-panel2 to-black" />
-      )}
+      <Thumb src={postPosterURL(post)} className="aspect-square w-full" />
       <div className="p-2.5">
         <p className="truncate text-xs font-bold text-white">{authorName(post)}</p>
         {caption ? <p className="line-clamp-2 text-xs text-white/50">{caption}</p> : null}

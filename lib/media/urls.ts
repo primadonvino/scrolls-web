@@ -60,3 +60,22 @@ export function postCoverURL(post: ScrollsPost) {
     postMediaURL(post)
   );
 }
+
+/**
+ * An image-safe thumbnail URL for a post — the cover, or the photo for photo
+ * posts. Returns null for videos without a cover (so we don't try to render a
+ * video URL inside an <img>) and for text posts.
+ */
+export function postPosterURL(post: ScrollsPost): string | null {
+  const cover =
+    post.coverImageRef ??
+    post.cover_image_ref ??
+    objectURL(post.coverBucket ?? post.cover_bucket, post.coverObjectKey ?? post.cover_object_key);
+  if (cover) return cover;
+  const type = post.mediaPreview?.type ?? post.type;
+  if (type === "photo") {
+    const url = postMediaURL(post);
+    return url && !/\.(mp4|mov)($|\?)/i.test(url) ? url : null;
+  }
+  return null;
+}
