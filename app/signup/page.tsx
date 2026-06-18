@@ -19,9 +19,7 @@ export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState(defaultDOB);
-  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,16 +35,8 @@ export default function SignupPage() {
       setError("Password must be at least 6 characters.");
       return;
     }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
     if (!dateOfBirth) {
       setError("Date of birth is required.");
-      return;
-    }
-    if (!agreed) {
-      setError("Please agree to the Privacy Policy and Terms of Service.");
       return;
     }
 
@@ -104,13 +94,6 @@ export default function SignupPage() {
             type="password"
             className={inputClass}
           />
-          <input
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            placeholder="Confirm password"
-            type="password"
-            className={inputClass}
-          />
           <label className="block rounded-2xl border border-white/10 bg-black px-4 py-3">
             <span className="block text-xs font-bold uppercase tracking-[0.18em] text-white/42">Date of birth</span>
             <input
@@ -124,29 +107,20 @@ export default function SignupPage() {
           </label>
         </div>
 
-        <label className="mt-5 flex gap-3 rounded-2xl border border-white/10 bg-black/35 p-4 text-sm leading-6 text-white/70">
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(event) => setAgreed(event.target.checked)}
-            className="mt-1 h-4 w-4 accent-scrolls-blue"
-          />
-          <span>
-            I agree to the Scrolls{" "}
-            <a href="/privacy" className="font-bold text-white underline decoration-white/30">Privacy Policy</a>
-            {" "}and{" "}
-            <a href="/terms" className="font-bold text-white underline decoration-white/30">Terms of Service</a>.
-          </span>
-        </label>
-
         {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
 
         <button
-          disabled={loading || !username.trim() || !email.trim() || !password || !confirmPassword || !agreed}
+          disabled={loading || !username.trim() || !email.trim() || !password}
           className="mt-6 w-full rounded-full bg-white py-4 font-black text-black disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loading ? "Creating..." : "Create account"}
         </button>
+
+        <p className="mt-4 text-center text-xs leading-5 text-white/45">
+          By creating an account, you agree to the Scrolls{" "}
+          <a href="/terms" className="font-bold text-white/70 underline decoration-white/25">Terms</a> and{" "}
+          <a href="/privacy" className="font-bold text-white/70 underline decoration-white/25">Privacy Policy</a>.
+        </p>
 
         <p className="mt-5 text-center text-sm text-white/55">
           Already have an account?{" "}
