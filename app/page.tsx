@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { AppCTA } from "@/components/AppCTA";
-import { BrandMark } from "@/components/BrandMark";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export default function HomePage() {
@@ -9,12 +8,8 @@ export default function HomePage() {
       <SiteHeader />
       <section className="mx-auto grid min-h-[78svh] max-w-6xl grid-cols-1 items-center gap-10 px-5 py-12 lg:grid-cols-[1.02fr_0.98fr]">
         <div className="max-w-3xl">
-          <p className="mb-5 text-sm font-bold uppercase tracking-[0.22em] text-scrolls-gold">Now on the App Store</p>
-          <h1 className="flex flex-col gap-3">
-            <BrandMark />
-            <span className="max-w-[13ch] text-5xl font-black leading-[0.94] tracking-normal text-white sm:text-7xl">
-              Scroll what matters
-            </span>
+          <h1 className="max-w-[13ch] text-5xl font-black leading-[0.94] tracking-normal text-white sm:text-7xl">
+            Scroll what matters
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-white/66">
             Scrolls is a social feed for creators and communities: city posts, music releases, circles, live moments, and shareable profiles that open cleanly on the web.
