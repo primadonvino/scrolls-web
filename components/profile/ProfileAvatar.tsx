@@ -6,6 +6,24 @@ import type { ScrollsUser } from "@/lib/types/scrolls";
 
 type Page = { kind: "photo"; url: string } | { kind: "video"; url: string };
 
+/** Signature overlay that fades in only once it loads, and hides on error. */
+function SignatureOverlay({ src }: { src: string }) {
+  const [state, setState] = useState<"loading" | "ok" | "error">("loading");
+  if (state === "error") return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt="Signature"
+      onLoad={() => setState("ok")}
+      onError={() => setState("error")}
+      className={`pointer-events-none absolute right-3 top-3 h-16 w-16 object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition-opacity duration-300 ${
+        state === "ok" ? "opacity-100" : "opacity-0"
+      }`}
+    />
+  );
+}
+
 /**
  * Large square profile avatar matching the iOS/Android profile header — a photo
  * page plus, when set, a looping muted video page. Navigable by swipe, the
@@ -67,14 +85,7 @@ export function ProfileAvatar({ profile }: { profile: ScrollsUser }) {
         />
       )}
 
-      {signature ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={signature}
-          alt="Signature"
-          className="pointer-events-none absolute right-3 top-3 h-16 w-16 object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-        />
-      ) : null}
+      {signature ? <SignatureOverlay src={signature} /> : null}
 
       {multi ? (
         <>

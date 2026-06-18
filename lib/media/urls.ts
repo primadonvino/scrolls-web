@@ -29,8 +29,20 @@ export function userAvatarURL(user?: ScrollsUser | null) {
 export function normalizedAssetURL(ref?: string | null) {
   const trimmed = ref?.trim();
   if (!trimmed) return null;
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `${mediaBase}/${trimmed.replace(/^\//, "")}`;
+  const source = /^https?:\/\//i.test(trimmed) ? trimmed : `${mediaBase}/${trimmed.replace(/^\//, "")}`;
+  // Re-point legacy Supabase storage URLs at the R2 CDN (matches the apps'
+  // MediaUrlResolver.rewriteLegacySupabaseStorage), so old signature/video refs
+  // resolve instead of 404ing.
+  const marker = ["/storage/v1/object/public/", "/storage/v1/render/image/public/"].find((m) => source.includes(m));
+  if (marker) {
+    const suffix = source.split(marker)[1] ?? "";
+    const slash = suffix.indexOf("/");
+    if (slash >= 0) {
+      const objectKey = suffix.slice(slash + 1).split("?")[0].trim();
+      if (objectKey) return `${mediaBase}/${objectKey}`;
+    }
+  }
+  return source;
 }
 
 /** A profile's looping video avatar, when one is set. */
