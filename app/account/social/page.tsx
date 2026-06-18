@@ -19,6 +19,23 @@ function displayNameOf(user: ScrollsUser): string {
   return user.displayName ?? user.display_name ?? user.username;
 }
 
+type DirectoryTab = "following" | "followers" | "requests";
+
+const TAB_LABELS: Record<DirectoryTab, string> = {
+  following: "Following",
+  followers: "Followers",
+  requests: "Requests"
+};
+
+function matchesQuery(user: ScrollsUser, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    (user.username ?? "").toLowerCase().includes(q) ||
+    displayNameOf(user).toLowerCase().includes(q)
+  );
+}
+
 export default function SocialPage() {
   const router = useRouter();
   const [session, setSession] = useState<AuthSession | null>(() => readSession());
@@ -28,6 +45,8 @@ export default function SocialPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [tab, setTab] = useState<DirectoryTab>("following");
+  const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
     const fresh = await readFreshSession();
@@ -102,15 +121,9 @@ export default function SocialPage() {
     <div>
       <SiteHeader />
       <section className="mx-auto max-w-2xl px-5 pb-16">
-        <div className="mb-6">
-          <p className="text-sm font-bold uppercase tracking-[0.22em] text-scrolls-gold">Account</p>
-          <h1 className="mt-2 text-4xl font-black">Social</h1>
-          <Link href="/account" className="mt-2 inline-block text-sm font-bold text-scrolls-blue">← Back to settings</Link>
-        </div>
-
         {!user ? (
-          <div className="scrolls-glass rounded-[1.8rem] p-6">
-            <p className="text-white/62">Log in to manage your followers and requests.</p>
+          <div className="scrolls-glass mt-6 rounded-[1.8rem] p-6">
+            <p className="text-white/62">Log in to see your directory.</p>
             <button
               type="button"
               onClick={() => router.push("/login")}
@@ -119,84 +132,135 @@ export default function SocialPage() {
               Log in
             </button>
           </div>
-        ) : loading ? (
-          <p className="text-white/55">Loading...</p>
         ) : (
-          <div className="space-y-8">
-            {status ? <p className="text-sm text-white/60">{status}</p> : null}
+          <>
+            {/* Header: list selector */}
+            <div className="mb-5 flex items-center justify-center pt-2">
+              <details className="group relative">
+                <summary className="flex cursor-pointer list-none items-center gap-2 text-3xl font-black">
+                  {TAB_LABELS[tab]}
+                  <span className="text-xl text-white/40 transition group-open:rotate-180">⌄</span>
+                </summary>
+                <div className="absolute left-1/2 z-30 mt-2 w-48 -translate-x-1/2 overflow-hidden rounded-2xl border border-white/10 bg-scrolls-panel p-1 shadow-glow">
+                  {(["following", "followers", "requests"] as DirectoryTab[]).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={(event) => {
+                        setTab(value);
+                        event.currentTarget.closest("details")?.removeAttribute("open");
+                      }}
+                      className={`block w-full rounded-xl px-4 py-2.5 text-left text-sm font-bold transition hover:bg-white/10 ${
+                        tab === value ? "text-scrolls-gold" : "text-white/85"
+                      }`}
+                    >
+                      {tab === value ? "✓ " : ""}
+                      {TAB_LABELS[value]}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            </div>
 
-            <SocialSection title="Follow requests" count={requests.length} emptyText="No pending requests.">
-              {requests.map((requester) => (
-                <UserRow key={requester.id} user={requester}>
-                  <button
-                    type="button"
-                    disabled={busyId === requester.id}
-                    onClick={() => respond(requester, true)}
-                    className="rounded-full bg-white px-4 py-2 text-xs font-black text-black disabled:opacity-45"
-                  >
-                    Accept
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busyId === requester.id}
-                    onClick={() => respond(requester, false)}
-                    className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/80 disabled:opacity-45"
-                  >
-                    Deny
-                  </button>
-                </UserRow>
-              ))}
-            </SocialSection>
+            {/* Search */}
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              className="w-full rounded-2xl border border-white/10 bg-black px-4 py-3.5 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+            />
 
-            <SocialSection title="Following" count={following.length} emptyText="You're not following anyone yet.">
-              {following.map((followee) => (
-                <UserRow key={followee.id} user={followee}>
-                  <button
-                    type="button"
-                    disabled={busyId === followee.id}
-                    onClick={() => unfollow(followee)}
-                    className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/80 disabled:opacity-45"
-                  >
-                    {busyId === followee.id ? "..." : "Unfollow"}
-                  </button>
-                </UserRow>
-              ))}
-            </SocialSection>
+            {/* Stats */}
+            <div className="mt-4 grid grid-cols-4 gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-center">
+              <DirStat label="Following" value={following.length} active={tab === "following"} onClick={() => setTab("following")} />
+              <DirStat label="Followers" value={followers.length} active={tab === "followers"} onClick={() => setTab("followers")} />
+              <DirStat label="Subscribed" value="—" />
+              <DirStat label="Requests" value={requests.length} active={tab === "requests"} onClick={() => setTab("requests")} />
+            </div>
 
-            <SocialSection title="Followers" count={followers.length} emptyText="No followers yet.">
-              {followers.map((follower) => (
-                <UserRow key={follower.id} user={follower} />
-              ))}
-            </SocialSection>
-          </div>
+            {status ? <p className="mt-4 text-sm text-white/60">{status}</p> : null}
+
+            {/* Active list */}
+            <div className="mt-5 space-y-2">
+              {loading ? <p className="text-white/55">Loading…</p> : <DirectoryList />}
+            </div>
+          </>
         )}
       </section>
     </div>
   );
+
+  function DirectoryList() {
+    const list = (tab === "following" ? following : tab === "followers" ? followers : requests).filter((u) =>
+      matchesQuery(u, query)
+    );
+    if (list.length === 0) {
+      return <p className="text-sm text-white/45">{query.trim() ? "No matches." : `No ${TAB_LABELS[tab].toLowerCase()} yet.`}</p>;
+    }
+    return (
+      <>
+        {list.map((entry) => (
+          <UserRow key={entry.id} user={entry}>
+            {tab === "requests" ? (
+              <>
+                <button
+                  type="button"
+                  disabled={busyId === entry.id}
+                  onClick={() => respond(entry, true)}
+                  className="rounded-full bg-white px-4 py-2 text-xs font-black text-black disabled:opacity-45"
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === entry.id}
+                  onClick={() => respond(entry, false)}
+                  className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/80 disabled:opacity-45"
+                >
+                  Deny
+                </button>
+              </>
+            ) : tab === "following" ? (
+              <button
+                type="button"
+                disabled={busyId === entry.id}
+                onClick={() => unfollow(entry)}
+                className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/80 disabled:opacity-45"
+              >
+                {busyId === entry.id ? "..." : "Unfollow"}
+              </button>
+            ) : null}
+          </UserRow>
+        ))}
+      </>
+    );
+  }
 }
 
-function SocialSection({
-  title,
-  count,
-  emptyText,
-  children
+function DirStat({
+  label,
+  value,
+  active,
+  onClick
 }: {
-  title: string;
-  count: number;
-  emptyText: string;
-  children: React.ReactNode;
+  label: string;
+  value: number | string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
+  const inner = (
+    <>
+      <p className={`text-2xl font-black ${active ? "text-scrolls-gold" : "text-white"}`}>{value}</p>
+      <p className="mt-0.5 text-xs font-bold text-white/45">{label}</p>
+    </>
+  );
+  if (!onClick) return <div className="px-1">{inner}</div>;
   return (
-    <div>
-      <h2 className="mb-3 text-lg font-black">
-        {title} <span className="text-white/40">{count}</span>
-      </h2>
-      {count === 0 ? (
-        <p className="text-sm text-white/45">{emptyText}</p>
-      ) : (
-        <div className="space-y-2">{children}</div>
-      )}
-    </div>
+    <button type="button" onClick={onClick} className="rounded-xl px-1 py-1 transition hover:bg-white/5">
+      {inner}
+    </button>
   );
 }
 
@@ -204,13 +268,17 @@ function UserRow({ user, children }: { user: ScrollsUser; children?: React.React
   return (
     <div className="scrolls-glass flex items-center gap-3 rounded-2xl px-4 py-3">
       <Link href={`/user/${user.username}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <Avatar user={user} size={40} />
+        <Avatar user={user} size={44} />
         <div className="min-w-0">
           <p className="truncate font-bold text-white">{displayNameOf(user)}</p>
           <p className="truncate text-sm text-white/45">@{user.username}</p>
         </div>
       </Link>
-      {children ? <div className="flex shrink-0 gap-2">{children}</div> : null}
+      {children ? (
+        <div className="flex shrink-0 gap-2">{children}</div>
+      ) : (
+        <Link href={`/user/${user.username}`} className="shrink-0 text-white/30">›</Link>
+      )}
     </div>
   );
 }
