@@ -13,7 +13,7 @@ export default function HomePage() {
           <h1 className="flex flex-col gap-3">
             <BrandMark />
             <span className="max-w-[13ch] text-5xl font-black leading-[0.94] tracking-normal text-white sm:text-7xl">
-              profiles, posts, music, moments.
+              Scroll what matters
             </span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-white/66">
