@@ -126,6 +126,13 @@ function LivePlayer({ moment }: { moment: ScrollsMoment }) {
 
       {live.title ? <p className="text-lg font-bold text-white">{live.title}</p> : null}
 
+      {live.tipGoal ? (
+        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm">
+          <span className="font-black text-scrolls-gold">Tip goal ${Math.round(live.tipGoal)}</span>
+          <span className="text-white/45">· Tip and chat in the Scrolls app</span>
+        </div>
+      ) : null}
+
       <OpenInAppCTA
         deepLink="scrolls://live"
         title="Join the live chat in Scrolls"

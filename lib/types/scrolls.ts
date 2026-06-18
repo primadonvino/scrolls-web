@@ -160,6 +160,7 @@ export type ScrollsLiveSession = {
   iframePlaybackURL?: string | null;
   startedAt?: string | null;
   title?: string | null;
+  tipGoal?: number | null;
   mode?: string | null;
   hasViewerPassword?: boolean;
 };
