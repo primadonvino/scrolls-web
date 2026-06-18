@@ -134,8 +134,12 @@ export default function FeedPage() {
       <section className="mx-auto max-w-2xl px-5 pb-16">
         <div className="mb-6 flex justify-center">
           <details className="group relative">
-            <summary className="flex cursor-pointer list-none items-center justify-center gap-2 text-4xl font-black">
-              {selectedCity ?? "Scrolls"}
+            <summary className="flex cursor-pointer list-none items-center justify-center gap-2">
+              {selectedCity ? (
+                <span className="text-4xl font-black">{selectedCity}</span>
+              ) : (
+                <span className="scrolls-wordmark text-5xl leading-none text-white">Scrolls</span>
+              )}
               <span className="text-2xl text-white/40 transition group-open:rotate-180">⌄</span>
             </summary>
             <div className="absolute left-1/2 z-30 mt-2 w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-white/10 bg-[#171719] p-1 shadow-glow">
