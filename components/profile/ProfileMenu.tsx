@@ -32,9 +32,9 @@ export function ProfileMenu({ username }: { username: string }) {
         </summary>
         <div className="absolute left-0 z-30 mt-2 w-60 overflow-hidden rounded-2xl border border-white/10 bg-scrolls-panel p-1 shadow-glow">
           <Link href="/account/edit" className={itemClass}>Edit profile</Link>
+          <Link href="/account" className={itemClass}>Account settings</Link>
           <button type="button" onClick={() => setQrOpen(true)} className={itemClass}>Share profile QR</button>
           <Link href="/account/social" className={itemClass}>Directory</Link>
-          <Link href="/account" className={itemClass}>Account settings</Link>
           <Link href="/terms" className={itemClass}>Terms</Link>
           <Link href="/privacy" className={itemClass}>Privacy Policy</Link>
           <a href={`scrolls://user/${username}`} className={itemClass}>Open in Scrolls</a>

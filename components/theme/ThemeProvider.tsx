@@ -8,10 +8,11 @@ export const THEME_STORAGE_KEY = "scrolls.theme";
 
 /**
  * Inline script that applies the saved theme before paint. The server already
- * renders data-theme from the cookie (no flash); this is a belt-and-suspenders
- * fallback that prefers the cookie and falls back to localStorage.
+ * renders data-theme from the cookie (no flash); this only reconciles from the
+ * cookie/localStorage and NEVER overrides the server value when it can't find a
+ * valid saved theme (so it can't randomly flip back to dark).
  */
-export const themeInitScript = `try{var m=document.cookie.match(/(?:^|; )${THEME_STORAGE_KEY.replace(".", "\\\\.")}=([^;]+)/);var t=m?m[1]:localStorage.getItem('${THEME_STORAGE_KEY}');document.documentElement.dataset.theme=(t==='light'||t==='cheetah'||t==='dark')?t:'dark';}catch(e){}`;
+export const themeInitScript = `try{var k='${THEME_STORAGE_KEY}=',p=document.cookie.split('; '),t=null,i;for(i=0;i<p.length;i++){if(p[i].indexOf(k)===0){t=p[i].slice(k.length);break;}}if(!t){t=localStorage.getItem('${THEME_STORAGE_KEY}');}if(t==='light'||t==='cheetah'||t==='dark'){document.documentElement.dataset.theme=t;}}catch(e){}`;
 
 type ThemeContextValue = { theme: Theme; setTheme: (theme: Theme) => void };
 
