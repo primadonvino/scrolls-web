@@ -10,7 +10,7 @@ export function ProfileHeader({ profile }: { profile: ScrollsUser }) {
   const venmoURL = profile.venmoURL ?? profile.venmo_url ?? null;
   const cashAppURL = profile.cashAppURL ?? profile.cashappURL ?? profile.cashapp_url ?? null;
   return (
-    <section className="scrolls-glass rounded-[1.8rem] p-6">
+    <section className="scrolls-glass relative rounded-[1.8rem] p-6 has-[details[open]]:z-30">
       <div className="mx-auto w-full max-w-sm">
         <ProfileAvatar profile={profile} />
       </div>
