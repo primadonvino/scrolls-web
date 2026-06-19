@@ -2,16 +2,28 @@ import { isArticlePost } from "@/lib/article/article";
 import { postMediaURL } from "@/lib/media/urls";
 import { parseMusicPost } from "@/lib/music/markers";
 import type { ScrollsPost } from "@/lib/types/scrolls";
+import { parseVideoCategory } from "@/lib/video/category";
 
 /** Profile post-type filters, mirroring iOS `ProfileScrollFilter`. */
-export type PostCategory = "all" | "writing" | "drawings" | "photos" | "video" | "podcasts" | "music";
+export type PostCategory =
+  | "all"
+  | "writing"
+  | "drawings"
+  | "photos"
+  | "video"
+  | "shortFilm"
+  | "musicVideo"
+  | "podcasts"
+  | "music";
 
 export const POST_CATEGORIES: { value: PostCategory; label: string }[] = [
   { value: "all", label: "All Scrolls" },
   { value: "writing", label: "Writing" },
   { value: "drawings", label: "Drawings" },
   { value: "photos", label: "Photos" },
-  { value: "video", label: "Video" },
+  { value: "video", label: "All video" },
+  { value: "shortFilm", label: "Short film" },
+  { value: "musicVideo", label: "Music video" },
   { value: "podcasts", label: "Podcasts" },
   { value: "music", label: "Music" }
 ];
@@ -36,6 +48,10 @@ export function postMatchesCategory(post: ScrollsPost, category: PostCategory): 
       return music.isPodcast;
     case "video":
       return type === "video" && !music.isMusic;
+    case "shortFilm":
+      return type === "video" && !music.isMusic && parseVideoCategory(post.caption) === "shortFilm";
+    case "musicVideo":
+      return type === "video" && !music.isMusic && parseVideoCategory(post.caption) === "musicVideo";
     case "drawings":
       return isDrawing(post, type);
     case "photos":

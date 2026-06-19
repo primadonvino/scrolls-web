@@ -254,6 +254,7 @@ export function strippedCaption(caption?: string | null): string | null {
     .split(/\r?\n/)
     .filter((line) => {
       const up = line.trim().toUpperCase();
+      if (up.startsWith("[VIDEO_CATEGORY]")) return false;
       return !ALL_MARKERS.some((m) => up.startsWith(m));
     })
     .join("\n")

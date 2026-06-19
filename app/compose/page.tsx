@@ -9,6 +9,7 @@ import { PodcastComposer } from "@/components/compose/PodcastComposer";
 import { UploadProgressBar } from "@/components/compose/UploadProgressBar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { createMediaPost, createTextPost, uploadPostMedia } from "@/lib/api/scrolls";
+import { buildVideoCaption, VIDEO_CATEGORY_OPTIONS, type VideoCategory } from "@/lib/video/category";
 import { readFreshSession, readSession } from "@/lib/auth/session";
 import type { AuthSession } from "@/lib/types/scrolls";
 
@@ -30,6 +31,7 @@ export default function ComposePage() {
   const [file, setFile] = useState<File | null>(null);
   const [previewURL, setPreviewURL] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+  const [videoCategory, setVideoCategory] = useState<VideoCategory>("video");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -118,11 +120,13 @@ export default function ComposePage() {
           return;
         }
         const uploaded = await uploadPostMedia(fresh.token, fresh.user.id, file, setProgress);
+        const mediaCaption =
+          mode === "video" ? buildVideoCaption(caption, videoCategory) : caption.trim() || null;
         await createMediaPost(
           {
             authorID: fresh.user.id,
             type: mode,
-            caption: caption.trim() || null,
+            caption: mediaCaption,
             aspectRatio,
             asset: { provider: uploaded.provider, bucket: uploaded.bucket, objectKey: uploaded.objectKey }
           },
@@ -239,6 +243,27 @@ export default function ComposePage() {
                   className="mt-3 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/30"
                 />
                 <p className="mt-2 text-right text-xs text-white/40">{caption.length}/{MAX_CAPTION}</p>
+                {mode === "video" ? (
+                  <div className="mt-2">
+                    <p className="mb-2 text-sm font-bold text-white/70">Video type</p>
+                    <div className="flex flex-wrap gap-2">
+                      {VIDEO_CATEGORY_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setVideoCategory(option.value)}
+                          className={`rounded-full px-4 py-2 text-sm font-black transition ${
+                            videoCategory === option.value
+                              ? "bg-white text-black"
+                              : "border border-white/12 text-white/70 hover:bg-white/10"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </>
             )}
 
