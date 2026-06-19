@@ -65,7 +65,7 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
   const [deleted, setDeleted] = useState(false);
   const [editingCaption, setEditingCaption] = useState(false);
   const [captionDraft, setCaptionDraft] = useState(post.caption ?? "");
-  const isVideoPost = (post.mediaPreview?.type ?? post.type) === "video" && !isMusicOrPodcast(post.caption);
+  const isVideoPost = (post.mediaPreview?.type ?? post.type) === "video" && !isMusicOrPodcast(post);
   const [editVideoCategory, setEditVideoCategory] = useState<VideoCategory>(() => parseVideoCategory(post.caption));
 
   const author = post.author ?? post.user;
