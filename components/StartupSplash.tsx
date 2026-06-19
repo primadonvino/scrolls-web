@@ -17,6 +17,7 @@ const SESSION_KEY = "scrolls.splash.shown";
 export function StartupSplash() {
   const [visible, setVisible] = useState(true);
   const skipped = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useIsoLayoutEffect(() => {
     try {
@@ -35,7 +36,31 @@ export function StartupSplash() {
     if (skipped.current) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const timer = window.setTimeout(() => setVisible(false), reduce ? 1400 : 2950);
-    return () => window.clearTimeout(timer);
+
+    // Startup chime — mirrors iOS `ScrollsPreloadAudio`. Browsers may block
+    // autoplay on a first visit with no prior interaction; if so, arm the first
+    // user gesture to play it instead. We never pause it, so it finishes even
+    // after the overlay fades.
+    const audio = new Audio("/scrolls-startup.mp3");
+    audio.volume = 0.7;
+    audioRef.current = audio;
+    const onGesture = () => {
+      audio.play().catch(() => {});
+      removeGesture();
+    };
+    const removeGesture = () => {
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("keydown", onGesture);
+    };
+    audio.play().catch(() => {
+      window.addEventListener("pointerdown", onGesture);
+      window.addEventListener("keydown", onGesture);
+    });
+
+    return () => {
+      window.clearTimeout(timer);
+      removeGesture();
+    };
   }, []);
 
   if (!visible) return null;
