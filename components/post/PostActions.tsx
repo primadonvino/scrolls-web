@@ -53,6 +53,8 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("spam");
+  const [quoting, setQuoting] = useState(false);
+  const [quoteBody, setQuoteBody] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleted, setDeleted] = useState(false);
   const [editingCaption, setEditingCaption] = useState(false);
@@ -242,15 +244,17 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
     }
   }
 
-  async function rescroll() {
+  async function rescroll(quoteText?: string) {
     const freshSession = await readFreshSession();
     setSession(freshSession);
     if (!freshSession?.token || !freshSession.user?.id) return;
     setBusy("rescroll");
     setStatus(null);
     try {
-      await createRescroll(freshSession.user.id, post.id, freshSession.token);
-      setStatus("Rescrolled.");
+      await createRescroll(freshSession.user.id, post.id, freshSession.token, quoteText);
+      setQuoting(false);
+      setQuoteBody("");
+      setStatus(quoteText?.trim() ? "Quote rescrolled." : "Rescrolled.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not rescroll.");
     } finally {
@@ -312,10 +316,18 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
         <button
           type="button"
           disabled={!isSignedIn || busy === "rescroll"}
-          onClick={rescroll}
+          onClick={() => rescroll()}
           className="rounded-full border border-white/12 px-4 py-2 font-bold text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35"
         >
-          {busy === "rescroll" ? "Rescrolling..." : "Rescroll"}
+          {busy === "rescroll" && !quoting ? "Rescrolling..." : "Rescroll"}
+        </button>
+        <button
+          type="button"
+          disabled={!isSignedIn}
+          onClick={() => { setQuoting((value) => !value); setQuoteBody(""); }}
+          className="rounded-full border border-white/12 px-4 py-2 font-bold text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35"
+        >
+          {quoting ? "Cancel quote" : "Quote"}
         </button>
         <details className="relative">
           <summary className="cursor-pointer list-none rounded-full border border-white/12 px-4 py-2 font-bold text-white/80 transition hover:bg-white/10">
@@ -423,6 +435,29 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
       </div>
 
       {status ? <p className="mt-3 text-sm text-white/52">{status}</p> : null}
+
+      {quoting ? (
+        <div className="mt-3 rounded-[1.25rem] border border-white/10 bg-black/35 p-3">
+          <textarea
+            value={quoteBody}
+            onChange={(event) => setQuoteBody(event.target.value.slice(0, 280))}
+            rows={3}
+            placeholder="Add a comment to your rescroll…"
+            className="w-full resize-none rounded-2xl border border-white/10 bg-black px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/30"
+          />
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-white/40">{quoteBody.trim().length}/280</span>
+            <button
+              type="button"
+              disabled={busy === "rescroll" || !quoteBody.trim()}
+              onClick={() => rescroll(quoteBody)}
+              className="rounded-full bg-scrolls-blue px-5 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {busy === "rescroll" ? "Posting…" : "Quote rescroll"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {editingCaption ? (
         <div className="mt-3 rounded-[1.25rem] border border-white/10 bg-black/35 p-3">

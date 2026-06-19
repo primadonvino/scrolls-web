@@ -99,6 +99,8 @@ export type ScrollsPost = {
   user?: ScrollsUser;
   rescrollOrigin?: RescrollOrigin | null;
   rescroll_origin?: RescrollOrigin | null;
+  quoteText?: string | null;
+  quote_text?: string | null;
   comments?: unknown[];
   mediaPreview?: {
     type?: string;

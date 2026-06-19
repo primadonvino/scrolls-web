@@ -27,6 +27,7 @@ export function PostCard({
   // content is rescrollOrigin.user (matches iOS `rescrollOrigin?.user ?? user`).
   const rescroll = post.rescrollOrigin ?? post.rescroll_origin ?? null;
   const rescroller = rescroll ? post.author ?? post.user : null;
+  const quoteText = (post.quoteText ?? post.quote_text ?? "").trim();
   const author = rescroll?.user ?? post.author ?? post.user;
   const displayName = author?.displayName ?? author?.display_name ?? author?.username ?? "Scrolls user";
   const username = author?.username ?? "user";
@@ -49,6 +50,14 @@ export function PostCard({
           <Link href={`/user/${encodeURIComponent(rescroller.username ?? "user")}`} className="hover:underline">
             @{rescroller.username ?? "user"}
           </Link>
+        </div>
+      ) : null}
+      {quoteText ? (
+        <div className="mb-4 rounded-2xl border border-scrolls-blue/25 bg-white/[0.03] p-4">
+          {rescroller?.username ? (
+            <p className="mb-1 text-sm font-bold text-white/55">@{rescroller.username}</p>
+          ) : null}
+          <p className="whitespace-pre-wrap text-[15px] font-semibold leading-relaxed text-white/90">{quoteText}</p>
         </div>
       ) : null}
       <Link href={`/user/${encodeURIComponent(username)}`} className="mb-4 flex items-center gap-3">

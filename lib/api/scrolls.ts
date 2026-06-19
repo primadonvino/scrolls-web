@@ -648,10 +648,15 @@ export async function deleteComment(commentID: string, requesterID: string, toke
   }, token);
 }
 
-export async function createRescroll(userID: string, originalPostID: string, token: string) {
+export async function createRescroll(
+  userID: string,
+  originalPostID: string,
+  token: string,
+  quoteText?: string | null
+) {
   return request<{ ok: boolean }>("/rescrolls", {
     method: "POST",
-    body: JSON.stringify({ userID, originalPostID })
+    body: JSON.stringify({ userID, originalPostID, quoteText: quoteText?.trim() || null })
   }, token);
 }
 
