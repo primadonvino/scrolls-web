@@ -648,15 +648,33 @@ export async function deleteComment(commentID: string, requesterID: string, toke
   }, token);
 }
 
+/** Decodes the `sub` claim from a JWT — the Supabase auth user id. */
+function jwtSubject(token: string): string | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const payload = JSON.parse(atob(padded)) as { sub?: string };
+    return typeof payload.sub === "string" ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function createRescroll(
   userID: string,
   originalPostID: string,
   token: string,
   quoteText?: string | null
 ) {
+  // The /rescrolls function strictly requires userID === the token's auth id,
+  // so send the token's own subject (which getUser returns) to avoid any
+  // session.user.id mismatch causing an Unauthorized.
+  const authedUserID = jwtSubject(token) ?? userID;
   return request<{ ok: boolean }>("/rescrolls", {
     method: "POST",
-    body: JSON.stringify({ userID, originalPostID, quoteText: quoteText?.trim() || null })
+    body: JSON.stringify({ userID: authedUserID, originalPostID, quoteText: quoteText?.trim() || null })
   }, token);
 }
 
