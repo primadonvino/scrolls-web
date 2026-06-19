@@ -26,6 +26,11 @@ export const metadata: Metadata = {
     siteName: "Scrolls",
     type: "website"
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Scrolls",
+    description: "Open Scrolls profiles and posts on the web."
+  },
   appLinks: {
     ios: {
       app_store_id: "6761082441",
