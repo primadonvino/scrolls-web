@@ -318,20 +318,31 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
       {/* Tracks */}
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-sm font-bold text-white/70">Tracks</p>
+          <p className="text-sm font-bold text-white/70">
+            Tracks{tracks.length ? ` · ${tracks.length}` : ""}
+          </p>
           <input ref={audioInputRef} type="file" accept={AUDIO_TYPES.join(",")} multiple onChange={pickAudio} className="hidden" />
+          {tracks.length ? (
+            <button
+              type="button"
+              onClick={() => audioInputRef.current?.click()}
+              className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white/80 hover:bg-white/10"
+            >
+              + Add tracks
+            </button>
+          ) : null}
+        </div>
+        {tracks.length === 0 ? (
           <button
             type="button"
             onClick={() => audioInputRef.current?.click()}
-            className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white/80 hover:bg-white/10"
+            className="w-full rounded-2xl border border-dashed border-white/20 bg-black/30 p-6 text-center transition hover:bg-black/50"
           >
-            + Add audio
+            <span className="block text-sm font-bold text-white/80">+ Add tracks</span>
+            <span className="mt-1 block text-xs text-white/45">
+              Pick one file for a single, or select several at once for an EP or album. MP3, M4A, AAC, or WAV.
+            </span>
           </button>
-        </div>
-        {tracks.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-white/15 bg-black/30 p-4 text-center text-sm text-white/45">
-            Add MP3, M4A, AAC, or WAV files.
-          </p>
         ) : (
           <ol className="space-y-2">
             {tracks.map((track, index) => (
@@ -397,6 +408,15 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
                 />
               </li>
             ))}
+            <li>
+              <button
+                type="button"
+                onClick={() => audioInputRef.current?.click()}
+                className="w-full rounded-2xl border border-dashed border-white/20 bg-black/20 p-3 text-center text-sm font-bold text-white/70 transition hover:bg-black/40"
+              >
+                + Add another track
+              </button>
+            </li>
           </ol>
         )}
       </div>
