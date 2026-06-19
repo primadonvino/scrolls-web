@@ -56,6 +56,24 @@ export default function FeedPage() {
     refreshFeed();
   }, [refreshFeed]);
 
+  // Optimistically show a rescroll/quote at the top the instant it's posted —
+  // mirrors iOS `posts.insert(sharedPost, at: 0)`. The backend feed orders your
+  // own content after people you follow, so without this it wouldn't appear up
+  // top right after posting.
+  useEffect(() => {
+    function onRescrolled(event: Event) {
+      const detail = (event as CustomEvent<ScrollsPost>).detail;
+      if (!detail) return;
+      setPosts((current) => {
+        const key = rescrollKey(detail);
+        const deduped = current.filter((post) => post.id !== detail.id && (!key || rescrollKey(post) !== key));
+        return [detail, ...deduped];
+      });
+    }
+    window.addEventListener("scrolls:rescrolled", onRescrolled as EventListener);
+    return () => window.removeEventListener("scrolls:rescrolled", onRescrolled as EventListener);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     let channel: ScrollsRealtimeChannel | null = null;
@@ -192,9 +210,22 @@ export default function FeedPage() {
   );
 }
 
+function rescrollKey(post: ScrollsPost): string | null {
+  const origin = post.rescrollOrigin?.postID ?? post.rescroll_origin?.postID;
+  if (!origin) return null;
+  const actor = (post.author?.id ?? post.user?.id ?? "").toLowerCase();
+  return `${actor}:${origin.toLowerCase()}`;
+}
+
 function mergeFreshPosts(fresh: ScrollsPost[], current: ScrollsPost[]) {
-  if (!current.length) return fresh;
+  // Drop optimistic temp rescrolls once the server returns the real one for the
+  // same actor + original post, so we don't show a duplicate.
+  const freshRescrollKeys = new Set(fresh.map(rescrollKey).filter(Boolean) as string[]);
+  const pruned = current.filter(
+    (post) => !(post.id.startsWith("rescroll-temp-") && freshRescrollKeys.has(rescrollKey(post) ?? ""))
+  );
+  if (!pruned.length) return fresh;
   const freshIDs = new Set(fresh.map((post) => post.id));
-  const olderCurrent = current.filter((post) => !freshIDs.has(post.id));
-  return [...fresh, ...olderCurrent].slice(0, Math.max(current.length, fresh.length));
+  const olderCurrent = pruned.filter((post) => !freshIDs.has(post.id));
+  return [...fresh, ...olderCurrent].slice(0, Math.max(pruned.length, fresh.length));
 }

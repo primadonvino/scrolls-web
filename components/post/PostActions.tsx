@@ -255,6 +255,33 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
       setQuoting(false);
       setQuoteBody("");
       setStatus(quoteText?.trim() ? "Quote rescrolled." : "Rescrolled.");
+      // Optimistically surface it at the top of the feed (mirrors iOS
+      // `posts.insert(sharedPost, at: 0)`), since the backend orders your own
+      // content after people you follow.
+      const me = freshSession.user;
+      const origin = post.author ?? post.user;
+      const trimmedQuote = quoteText?.trim() || null;
+      const now = new Date().toISOString();
+      const optimistic: ScrollsPost = {
+        ...post,
+        id: `rescroll-temp-${post.id}-${Date.now()}`,
+        author: me,
+        user: me,
+        quoteText: trimmedQuote,
+        quote_text: trimmedQuote,
+        createdAt: now,
+        created_at: now,
+        rescrollOrigin: {
+          postID: post.id,
+          user: origin,
+          caption: post.caption ?? null,
+          websiteURL: post.websiteURL ?? post.website_url ?? null,
+          timestamp: post.createdAt ?? post.created_at
+        }
+      };
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("scrolls:rescrolled", { detail: optimistic }));
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not rescroll.");
     } finally {
