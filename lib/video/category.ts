@@ -32,11 +32,18 @@ export function parseVideoCategory(caption?: string | null): VideoCategory {
   return "video";
 }
 
+// The exact marker values the iOS/Android apps use (VideoScrollCategory raw
+// values), so a video categorized on web round-trips identically in the app.
+const VIDEO_CATEGORY_RAW: Record<Exclude<VideoCategory, "video">, string> = {
+  shortFilm: "short_film",
+  musicVideo: "music_video"
+};
+
 /** Appends the `[VIDEO_CATEGORY]` marker to a caption (none for a plain video). */
 export function buildVideoCaption(caption: string | null | undefined, category: VideoCategory): string | null {
   const base = (caption ?? "").trim();
   if (category === "video") return base || null;
-  const marker = `${VIDEO_CATEGORY_MARKER} ${category}`;
+  const marker = `${VIDEO_CATEGORY_MARKER} ${VIDEO_CATEGORY_RAW[category]}`;
   return base ? `${base}\n${marker}` : marker;
 }
 

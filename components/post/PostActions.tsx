@@ -18,7 +18,13 @@ import {
   updateCaption
 } from "@/lib/api/scrolls";
 import { readFreshSession, readSession } from "@/lib/auth/session";
-import { isMusicOrPodcast } from "@/lib/music/markers";
+import { isMusicOrPodcast, strippedCaption } from "@/lib/music/markers";
+import {
+  buildVideoCaption,
+  parseVideoCategory,
+  VIDEO_CATEGORY_OPTIONS,
+  type VideoCategory
+} from "@/lib/video/category";
 import type { AuthSession, ScrollsComment, ScrollsPost } from "@/lib/types/scrolls";
 
 type Props = {
@@ -59,6 +65,8 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
   const [deleted, setDeleted] = useState(false);
   const [editingCaption, setEditingCaption] = useState(false);
   const [captionDraft, setCaptionDraft] = useState(post.caption ?? "");
+  const isVideoPost = (post.mediaPreview?.type ?? post.type) === "video" && !isMusicOrPodcast(post.caption);
+  const [editVideoCategory, setEditVideoCategory] = useState<VideoCategory>(() => parseVideoCategory(post.caption));
 
   const author = post.author ?? post.user;
   const authorID = author?.id;
@@ -86,12 +94,16 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
     const freshSession = await readFreshSession();
     setSession(freshSession);
     if (!freshSession?.token || !freshSession.user?.id) return;
-    const next = captionDraft.trim();
+    // For a video post, re-attach the [VIDEO_CATEGORY] marker so editing the
+    // caption can also recategorize it (Video / Short film / Music video).
+    const next = isVideoPost
+      ? buildVideoCaption(captionDraft, editVideoCategory)
+      : captionDraft.trim() || null;
     setBusy("caption");
     setStatus(null);
     try {
-      await updateCaption(post.id, freshSession.user.id, next || null, freshSession.token);
-      onCaptionUpdated?.(post.id, next);
+      await updateCaption(post.id, freshSession.user.id, next, freshSession.token);
+      onCaptionUpdated?.(post.id, next ?? "");
       setEditingCaption(false);
       setStatus("Caption updated.");
     } catch (error) {
@@ -413,7 +425,15 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
                   <button
                     type="button"
                     onClick={() => {
-                      setCaptionDraft(post.caption ?? "");
+                      // Video posts edit the clean caption + a category picker;
+                      // everything else edits the raw caption so other markers
+                      // (e.g. photo carousels) are preserved untouched.
+                      if (isVideoPost) {
+                        setCaptionDraft(strippedCaption(post.caption) ?? "");
+                        setEditVideoCategory(parseVideoCategory(post.caption));
+                      } else {
+                        setCaptionDraft(post.caption ?? "");
+                      }
                       setEditingCaption((value) => !value);
                     }}
                     className="mt-2 w-full rounded-full border border-white/12 px-4 py-2 text-sm font-bold text-white/85"
@@ -500,7 +520,28 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
             placeholder="Edit your caption"
             className="w-full resize-none rounded-2xl border border-white/10 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white/30"
           />
-          <div className="mt-2 flex items-center justify-between">
+          {isVideoPost ? (
+            <div className="mt-3">
+              <p className="mb-2 text-xs font-bold text-white/60">Video type</p>
+              <div className="flex flex-wrap gap-2">
+                {VIDEO_CATEGORY_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setEditVideoCategory(option.value)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-black transition ${
+                      editVideoCategory === option.value
+                        ? "bg-white text-black"
+                        : "border border-white/12 text-white/70 hover:bg-white/10"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="mt-3 flex items-center justify-between">
             <span className="text-xs text-white/40">{captionDraft.trim().length}/220</span>
             <button
               type="button"
