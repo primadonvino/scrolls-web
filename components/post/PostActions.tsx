@@ -251,7 +251,13 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
     setBusy("rescroll");
     setStatus(null);
     try {
-      await createRescroll(freshSession.user.id, post.id, freshSession.token, quoteText);
+      // If this post is itself a rescroll (feed rescroll posts carry the
+      // rescroll's id, not a posts.id), rescroll the underlying original — the
+      // backend FK requires original_post_id to be a real posts row.
+      const sourceOrigin = post.rescrollOrigin ?? post.rescroll_origin ?? null;
+      const targetPostID = sourceOrigin?.postID ?? post.id;
+      const originalAuthor = sourceOrigin?.user ?? post.author ?? post.user;
+      await createRescroll(freshSession.user.id, targetPostID, freshSession.token, quoteText);
       setQuoting(false);
       setQuoteBody("");
       setStatus(quoteText?.trim() ? "Quote rescrolled." : "Rescrolled.");
@@ -259,12 +265,11 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
       // `posts.insert(sharedPost, at: 0)`), since the backend orders your own
       // content after people you follow.
       const me = freshSession.user;
-      const origin = post.author ?? post.user;
       const trimmedQuote = quoteText?.trim() || null;
       const now = new Date().toISOString();
       const optimistic: ScrollsPost = {
         ...post,
-        id: `rescroll-temp-${post.id}-${Date.now()}`,
+        id: `rescroll-temp-${targetPostID}-${Date.now()}`,
         author: me,
         user: me,
         quoteText: trimmedQuote,
@@ -272,11 +277,11 @@ export function PostActions({ post, onBlocked, onDeleted, onCaptionUpdated }: Pr
         createdAt: now,
         created_at: now,
         rescrollOrigin: {
-          postID: post.id,
-          user: origin,
-          caption: post.caption ?? null,
-          websiteURL: post.websiteURL ?? post.website_url ?? null,
-          timestamp: post.createdAt ?? post.created_at
+          postID: targetPostID,
+          user: originalAuthor,
+          caption: sourceOrigin?.caption ?? post.caption ?? null,
+          websiteURL: sourceOrigin?.websiteURL ?? post.websiteURL ?? post.website_url ?? null,
+          timestamp: sourceOrigin?.timestamp ?? post.createdAt ?? post.created_at
         }
       };
       if (typeof window !== "undefined") {
