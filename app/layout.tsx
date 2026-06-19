@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { PlayerProvider } from "@/components/player/PlayerProvider";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
+import { StartupSplash } from "@/components/StartupSplash";
 import { THEME_STORAGE_KEY, ThemeProvider, themeInitScript } from "@/components/theme/ThemeProvider";
 import "./globals.css";
 
@@ -53,6 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" data-theme={theme}>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <StartupSplash />
         <ThemeProvider>
           <RegisterServiceWorker />
           <PlayerProvider>
