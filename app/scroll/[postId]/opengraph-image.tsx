@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { fetchPost } from "@/lib/api/scrolls";
 import { parseArticle } from "@/lib/article/article";
-import { postCoverURL, postMediaURL } from "@/lib/media/urls";
+import { postCoverURL, postMediaURL, userAvatarURL } from "@/lib/media/urls";
 import { parseMusicPost, strippedCaption } from "@/lib/music/markers";
 import { loadRemoteImage } from "@/lib/og/remoteImage";
 
@@ -21,12 +21,16 @@ export default async function Image({ params }: { params: Promise<{ postId: stri
   let title = "Open this scroll on the web";
   let handle = "scrolls.adastra.love";
   let mediaURL: string | null = null;
+  let avatarURL: string | null = null;
 
   try {
     const post = await fetchPost(postId);
     if (post) {
       const author = post.rescrollOrigin?.user ?? post.author ?? post.user;
       handle = author?.username ? `@${author.username}` : "Scrolls";
+      const avatar = userAvatarURL(author);
+      // Only remote avatars load in the edge runtime (skip the /icon.png fallback).
+      avatarURL = avatar && /^https?:\/\//.test(avatar) ? avatar : null;
       const music = parseMusicPost(post.caption);
       const article = parseArticle(post);
       if (music.isMusic || music.isPodcast) {
@@ -45,7 +49,7 @@ export default async function Image({ params }: { params: Promise<{ postId: stri
     // Render the generic card.
   }
 
-  const dataURL = await loadRemoteImage(mediaURL);
+  const [dataURL, avatarData] = await Promise.all([loadRemoteImage(mediaURL), loadRemoteImage(avatarURL)]);
 
   return new ImageResponse(
     (
@@ -62,6 +66,8 @@ export default async function Image({ params }: { params: Promise<{ postId: stri
             flexDirection: "column",
             justifyContent: "space-between",
             padding: "64px",
+            // Subtle gold inset border + readability gradient over media.
+            boxShadow: "inset 0 0 0 3px rgba(214,179,108,0.45)",
             background: dataURL
               ? "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0.85) 100%)"
               : "transparent",
@@ -71,11 +77,23 @@ export default async function Image({ params }: { params: Promise<{ postId: stri
           <div style={{ display: "flex", fontSize: 30, letterSpacing: 6, textTransform: "uppercase", color: "#d6b36c", fontWeight: 700 }}>
             {kind} · Scrolls
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <div style={{ display: "flex", fontSize: dataURL ? 60 : 70, fontWeight: 800, lineHeight: 1.05, maxWidth: 1040 }}>
               {truncate(title, 110)}
             </div>
-            <div style={{ display: "flex", fontSize: 32, color: "rgba(255,255,255,0.7)" }}>{handle} · scrolls.adastra.love</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {avatarData ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarData}
+                  width={52}
+                  height={52}
+                  style={{ width: 52, height: 52, borderRadius: 52, objectFit: "cover", border: "2px solid rgba(214,179,108,0.6)" }}
+                  alt=""
+                />
+              ) : null}
+              <div style={{ display: "flex", fontSize: 32, color: "rgba(255,255,255,0.7)" }}>{handle} · scrolls.adastra.love</div>
+            </div>
           </div>
         </div>
       </div>

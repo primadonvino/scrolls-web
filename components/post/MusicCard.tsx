@@ -1,9 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { usePlayer } from "@/components/player/PlayerProvider";
+import {
+  addTrackToPlaylist,
+  createPlaylist,
+  fetchMyPlaylists,
+  type MusicPlaylist
+} from "@/lib/api/scrolls";
+import { readFreshSession } from "@/lib/auth/session";
 import { postCoverURL, postMediaURL } from "@/lib/media/urls";
 import {
   creditLabel,
@@ -34,6 +41,7 @@ export function MusicCard({ post }: { post: ScrollsPost }) {
   const [lyricsTrackId, setLyricsTrackId] = useState<string | null>(null);
   const [optionsTrack, setOptionsTrack] = useState<MusicTrack | null>(null);
   const [creditsTrack, setCreditsTrack] = useState<MusicTrack | null>(null);
+  const [playlistTrack, setPlaylistTrack] = useState<MusicTrack | null>(null);
 
   const badge = music.isPodcast ? "🎙 Podcast" : "♪ Music";
   const typeLabel = releaseTypeLabel(music.releaseType);
@@ -82,11 +90,6 @@ export function MusicCard({ post }: { post: ScrollsPost }) {
     const startIndex = playable.findIndex((t) => t.id === track.id);
     if (startIndex < 0) return;
     player.playQueue(playable.map(playerTrack), startIndex);
-  }
-
-  function playNext(track: MusicTrack) {
-    if (track.audioURL) player.playNext(playerTrack(track));
-    setOptionsTrack(null);
   }
 
   async function shareTrack(track: MusicTrack) {
@@ -183,10 +186,12 @@ export function MusicCard({ post }: { post: ScrollsPost }) {
       {optionsTrack ? (
         <TrackOptionsSheet
           track={optionsTrack}
-          canPlayNext={Boolean(optionsTrack.audioURL)}
           onClose={() => setOptionsTrack(null)}
           onShare={() => shareTrack(optionsTrack)}
-          onPlayNext={() => playNext(optionsTrack)}
+          onAddToPlaylist={() => {
+            setPlaylistTrack(optionsTrack);
+            setOptionsTrack(null);
+          }}
           onViewCredits={() => {
             setCreditsTrack(optionsTrack);
             setOptionsTrack(null);
@@ -201,6 +206,10 @@ export function MusicCard({ post }: { post: ScrollsPost }) {
           leadLabel={leadName}
           onClose={() => setCreditsTrack(null)}
         />
+      ) : null}
+
+      {playlistTrack ? (
+        <PlaylistSheet post={post} track={playlistTrack} onClose={() => setPlaylistTrack(null)} />
       ) : null}
     </div>
   );
@@ -302,28 +311,23 @@ function TrackRow({
 /** Apple Music-style options overlay for a track. */
 function TrackOptionsSheet({
   track,
-  canPlayNext,
   onClose,
   onShare,
-  onPlayNext,
+  onAddToPlaylist,
   onViewCredits
 }: {
   track: MusicTrack;
-  canPlayNext: boolean;
   onClose: () => void;
   onShare: () => void;
-  onPlayNext: () => void;
+  onAddToPlaylist: () => void;
   onViewCredits: () => void;
 }) {
   return (
     <SheetBackdrop onClose={onClose}>
       <p className="mb-3 truncate px-2 text-sm font-black text-white">{track.title || "Track"}</p>
       <div className="space-y-1">
-        <SheetItem label="Add" sublabel="Soon" disabled />
-        <SheetItem label="Favorite" sublabel="Soon" disabled />
         <SheetItem label="Share" onClick={onShare} />
-        <SheetItem label="Add to Playlist" sublabel="Soon" disabled />
-        <SheetItem label="Play Next" onClick={onPlayNext} disabled={!canPlayNext} />
+        <SheetItem label="Add to Playlist" onClick={onAddToPlaylist} />
         <SheetItem label="View Credits" onClick={onViewCredits} />
       </div>
     </SheetBackdrop>
@@ -355,10 +359,125 @@ function CreditsSheet({
             user={{ id: credit.userID, username: credit.username, displayName: credit.displayName }}
             label={creditLabel(credit)}
             username={credit.username}
-            role="Featured"
+            role="Collaborator"
           />
         ))}
       </div>
+    </SheetBackdrop>
+  );
+}
+
+/** Add-to-playlist sheet. Calls the playlist endpoints when present; degrades
+ *  to a "coming soon" message when the backend isn't deployed yet. */
+function PlaylistSheet({ post, track, onClose }: { post: ScrollsPost; track: MusicTrack; onClose: () => void }) {
+  const [state, setState] = useState<"loading" | "ready" | "unavailable">("loading");
+  const [playlists, setPlaylists] = useState<MusicPlaylist[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const session = await readFreshSession();
+      if (!session?.token) {
+        if (!cancelled) setState("unavailable");
+        return;
+      }
+      try {
+        const lists = await fetchMyPlaylists(session.token);
+        if (!cancelled) {
+          setPlaylists(lists);
+          setState("ready");
+        }
+      } catch {
+        if (!cancelled) setState("unavailable");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function addTo(playlistID: string, title: string) {
+    const session = await readFreshSession();
+    if (!session?.token) return;
+    setBusy(true);
+    try {
+      await addTrackToPlaylist(
+        playlistID,
+        {
+          sourcePostID: post.id,
+          trackID: track.id,
+          trackTitle: track.title,
+          artistCredits: track.collaboratorCredits ?? []
+        },
+        session.token
+      );
+      setDone(title);
+    } catch {
+      setState("unavailable");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createAndAdd() {
+    const title = newTitle.trim();
+    if (!title) return;
+    const session = await readFreshSession();
+    if (!session?.token) return;
+    setBusy(true);
+    try {
+      const playlist = await createPlaylist(title, session.token);
+      await addTrackToPlaylist(
+        playlist.id,
+        {
+          sourcePostID: post.id,
+          trackID: track.id,
+          trackTitle: track.title,
+          artistCredits: track.collaboratorCredits ?? []
+        },
+        session.token
+      );
+      setDone(title);
+    } catch {
+      setState("unavailable");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <SheetBackdrop onClose={onClose}>
+      <p className="mb-1 px-2 text-xs font-bold uppercase tracking-[0.18em] text-scrolls-gold">Add to Playlist</p>
+      <p className="mb-3 truncate px-2 text-sm font-black text-white">{track.title || "Track"}</p>
+      {state === "loading" ? <p className="px-2 py-3 text-sm text-white/55">Loading playlists…</p> : null}
+      {state === "unavailable" ? <p className="px-2 py-3 text-sm text-white/55">Playlists are coming soon.</p> : null}
+      {done ? <p className="px-2 py-3 text-sm font-bold text-scrolls-gold">Added to {done}.</p> : null}
+      {state === "ready" && !done ? (
+        <div className="space-y-1">
+          {playlists.map((playlist) => (
+            <SheetItem key={playlist.id} label={playlist.title} onClick={() => addTo(playlist.id, playlist.title)} disabled={busy} />
+          ))}
+          <div className="mt-2 flex gap-2 px-1">
+            <input
+              value={newTitle}
+              onChange={(event) => setNewTitle(event.target.value.slice(0, 80))}
+              placeholder="New playlist"
+              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/30"
+            />
+            <button
+              type="button"
+              onClick={createAndAdd}
+              disabled={busy || !newTitle.trim()}
+              className="rounded-xl bg-scrolls-blue px-4 py-2 text-sm font-black text-white disabled:opacity-45"
+            >
+              Create
+            </button>
+          </div>
+        </div>
+      ) : null}
     </SheetBackdrop>
   );
 }

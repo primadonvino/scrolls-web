@@ -70,7 +70,8 @@ export function ProfilePosts({
   // so the Rescrolls tab is sourced from the dedicated rescroll fetch.
   const rescrolls = rescrollPosts;
   const tabList = tab === "scrolls" ? scrolls : rescrolls;
-  const visible = category === "all" ? tabList : tabList.filter((post) => postMatchesCategory(post, category));
+  const visible =
+    category === "all" ? tabList : tabList.filter((post) => postMatchesCategory(post, category, profile));
   const activeLabel = categoryLabel(category);
 
   function selectCategory(value: PostCategory, target: HTMLElement) {

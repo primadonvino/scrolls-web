@@ -1,7 +1,7 @@
 import { isArticlePost } from "@/lib/article/article";
 import { postMediaURL } from "@/lib/media/urls";
 import { parseMusicPost } from "@/lib/music/markers";
-import type { ScrollsPost } from "@/lib/types/scrolls";
+import type { ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
 import { parseVideoCategory } from "@/lib/video/category";
 
 /** Profile post-type filters, mirroring iOS `ProfileScrollFilter`. */
@@ -16,7 +16,8 @@ export type PostCategory =
   | "musicVideo"
   | "music"
   | "musicAlbums"
-  | "musicSingles";
+  | "musicSingles"
+  | "musicCollaborations";
 
 export type CategoryLeaf = { value: PostCategory; label: string };
 export type CategoryNode = CategoryLeaf | { label: string; children: CategoryLeaf[] };
@@ -44,10 +45,30 @@ export const POST_CATEGORY_MENU: CategoryNode[] = [
     children: [
       { value: "music", label: "All" },
       { value: "musicAlbums", label: "Albums" },
-      { value: "musicSingles", label: "Singles/EPs" }
+      { value: "musicSingles", label: "Singles/EPs" },
+      { value: "musicCollaborations", label: "Collaborations" }
     ]
   }
 ];
+
+/**
+ * True if `profile` is credited as a collaborator on any track of a music post.
+ * Prefers userID match, falls back to case-insensitive username.
+ */
+export function postCreditsUser(post: ScrollsPost, profile?: ScrollsUser | null): boolean {
+  if (!profile) return false;
+  const music = parseMusicPost(post.caption);
+  if (!music.isMusic) return false;
+  const id = (profile.id ?? "").trim().toLowerCase();
+  const username = (profile.username ?? "").trim().toLowerCase();
+  return music.tracks.some((track) =>
+    (track.collaboratorCredits ?? []).some((credit) => {
+      if (id && credit.userID && credit.userID.trim().toLowerCase() === id) return true;
+      if (username && credit.username && credit.username.trim().toLowerCase() === username) return true;
+      return false;
+    })
+  );
+}
 
 /** Display label for a selected category value (used on the filter button). */
 export function categoryLabel(value: PostCategory): string {
@@ -69,15 +90,31 @@ function isDrawing(post: ScrollsPost, type: string): boolean {
   return url.includes("/drawings/") || name.startsWith("drawing-");
 }
 
-/** True if the post belongs to the given profile filter category. */
-export function postMatchesCategory(post: ScrollsPost, category: PostCategory): boolean {
+/**
+ * True if the post belongs to the given profile filter category. `profile` is
+ * the viewed profile, used for collaboration matching on the music filters.
+ *
+ * Note: this only sees the posts loaded for the profile (authored + rescrolls).
+ * Surfacing collaboration releases *authored by other users* needs a backend
+ * index (no endpoint queries the base64 collaboratorCredits in captions yet) —
+ * the predicate is correct, so it will light up automatically once such posts
+ * are in the set.
+ */
+export function postMatchesCategory(
+  post: ScrollsPost,
+  category: PostCategory,
+  profile?: ScrollsUser | null
+): boolean {
   if (category === "all") return true;
   const music = parseMusicPost(post.caption);
   const type = post.mediaPreview?.type ?? post.type ?? "";
 
   switch (category) {
     case "music":
+      // Authored music releases plus any where the profile is a collaborator.
       return music.isMusic;
+    case "musicCollaborations":
+      return music.isMusic && postCreditsUser(post, profile);
     case "musicAlbums":
       return music.isMusic && music.releaseType === "album";
     case "musicSingles":

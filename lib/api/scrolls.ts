@@ -175,6 +175,51 @@ export async function fetchRescrollsByAuthor(authorID: string, token?: string): 
   return result.posts ?? result.items ?? [];
 }
 
+// --- Music playlists (client prep) ------------------------------------------
+// iOS is adding synced playlists (music_playlists / music_playlist_tracks).
+// These call the expected endpoints; they throw if the backend isn't deployed
+// yet, so the UI can fall back to a "coming soon" state.
+
+export type MusicPlaylist = {
+  id: string;
+  title: string;
+  visibility?: string | null;
+  coverRef?: string | null;
+  trackCount?: number | null;
+};
+
+export type PlaylistTrackInput = {
+  sourcePostID: string;
+  trackID: string;
+  trackTitle: string;
+  artistCredits?: unknown[];
+};
+
+export async function fetchMyPlaylists(token: string): Promise<MusicPlaylist[]> {
+  const result = await request<{ playlists?: MusicPlaylist[] } | MusicPlaylist[]>(
+    "/music/playlists",
+    { cache: "no-store" },
+    token
+  );
+  return Array.isArray(result) ? result : result.playlists ?? [];
+}
+
+export async function createPlaylist(title: string, token: string): Promise<MusicPlaylist> {
+  return request<MusicPlaylist>(
+    "/music/playlists",
+    { method: "POST", body: JSON.stringify({ title: title.trim() }) },
+    token
+  );
+}
+
+export async function addTrackToPlaylist(playlistID: string, track: PlaylistTrackInput, token: string) {
+  return request<{ ok: boolean }>(
+    `/music/playlists/${encodeURIComponent(playlistID)}/tracks`,
+    { method: "POST", body: JSON.stringify(track) },
+    token
+  );
+}
+
 function isWrappedPostResponse(
   value: { post?: ScrollsPost | null } | ScrollsPost
 ): value is { post?: ScrollsPost | null } {
