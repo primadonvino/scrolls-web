@@ -14,7 +14,8 @@ import {
   MUSIC_GENRES,
   parseMusicPost,
   RELEASE_TYPE_OPTIONS,
-  type MusicReleaseType
+  type MusicReleaseType,
+  type MusicTrackCredit
 } from "@/lib/music/markers";
 import type { ScrollsPost } from "@/lib/types/scrolls";
 
@@ -35,6 +36,8 @@ type TrackDraft = {
   isExplicit: boolean;
   lyrics: string;
   durationSeconds: number | null;
+  /** Featured-artist credits, preserved across edits (set on iOS). */
+  collaboratorCredits: MusicTrackCredit[];
 };
 
 /** Reads an audio file's duration (seconds) via a throwaway <audio> element. */
@@ -81,7 +84,8 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
           title: track.title,
           isExplicit: track.isExplicit,
           lyrics: track.lyrics ?? "",
-          durationSeconds: track.durationSeconds ?? null
+          durationSeconds: track.durationSeconds ?? null,
+          collaboratorCredits: track.collaboratorCredits ?? []
         }))
       : []
   );
@@ -142,7 +146,8 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
         title: file.name.replace(/\.[^.]+$/, ""),
         isExplicit: false,
         lyrics: "",
-        durationSeconds: await readAudioDuration(file)
+        durationSeconds: await readAudioDuration(file),
+        collaboratorCredits: []
       }))
     );
     setTracks((current) => [...current, ...drafts]);
@@ -192,7 +197,8 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
           lyrics: track.lyrics,
           durationSeconds: track.durationSeconds,
           file: track.file,
-          existingAudioURL: track.existingAudioURL
+          existingAudioURL: track.existingAudioURL,
+          collaboratorCredits: track.collaboratorCredits
         }));
         await updateMusicPost(
           {

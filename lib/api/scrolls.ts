@@ -1,4 +1,4 @@
-import { buildMusicCaption, type MusicReleaseType, type MusicTrack } from "@/lib/music/markers";
+import { buildMusicCaption, type MusicReleaseType, type MusicTrack, type MusicTrackCredit } from "@/lib/music/markers";
 import type {
   AdDeliveryItem,
   AdSubmission,
@@ -530,6 +530,8 @@ export type MusicTrackEdit = {
   file?: File | null;
   /** Existing track's audio URL, kept when no new file is supplied. */
   existingAudioURL?: string | null;
+  /** Featured-artist credits, preserved through edits (set on iOS). */
+  collaboratorCredits?: MusicTrackCredit[];
 };
 
 /**
@@ -574,7 +576,8 @@ export async function updateMusicPost(
       audioURL,
       durationSeconds: track.durationSeconds ?? null,
       lyrics: track.lyrics?.trim() || null,
-      isExplicit: track.isExplicit
+      isExplicit: track.isExplicit,
+      collaboratorCredits: track.collaboratorCredits
     });
   }
 

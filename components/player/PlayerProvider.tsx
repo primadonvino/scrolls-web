@@ -20,6 +20,8 @@ type PlayerContextValue = {
   play: (track: PlayerTrack) => void;
   /** Play an album/queue starting at an index, with prev/next + track list. */
   playQueue: (tracks: PlayerTrack[], startIndex?: number) => void;
+  /** Queue a track to play right after the current one (starts it if idle). */
+  playNext: (track: PlayerTrack) => void;
   toggle: () => void;
   close: () => void;
   expand: () => void;
@@ -83,6 +85,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     start(tracks, i);
   }, []);
 
+  const playNext = useCallback((track: PlayerTrack) => {
+    setQueue((q) => {
+      if (!q.length) {
+        start([track], 0);
+        return [track];
+      }
+      const at = Math.min(index + 1, q.length);
+      return [...q.slice(0, at), track, ...q.slice(at)];
+    });
+  }, [index]);
+
   function goTo(i: number) {
     if (i < 0 || i >= queue.length) return;
     setIndex(i);
@@ -137,7 +150,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const hasQueue = queue.length > 1;
 
   return (
-    <PlayerContext.Provider value={{ current, isPlaying, play, playQueue, toggle, close, expand }}>
+    <PlayerContext.Provider value={{ current, isPlaying, play, playQueue, playNext, toggle, close, expand }}>
       {children}
       {current ? <div aria-hidden className="h-20" /> : null}
 

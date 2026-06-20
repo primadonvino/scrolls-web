@@ -34,6 +34,13 @@ const ALL_MARKERS = Object.values(MARKER);
 
 export type MusicReleaseType = "album" | "singlesEPs";
 
+/** A featured artist credited on a track (mirrors iOS MusicTrackArtistCredit). */
+export type MusicTrackCredit = {
+  userID: string;
+  username: string;
+  displayName: string;
+};
+
 export type MusicTrack = {
   id: string;
   title: string;
@@ -41,7 +48,17 @@ export type MusicTrack = {
   durationSeconds?: number | null;
   lyrics?: string | null;
   isExplicit: boolean;
+  /** Featured artists beyond the lead (post author), in render order. */
+  collaboratorCredits?: MusicTrackCredit[];
 };
+
+/** Display label for a credit: display name, else @username, else "Artist". */
+export function creditLabel(credit: MusicTrackCredit): string {
+  const name = credit.displayName?.trim();
+  if (name) return name;
+  const username = credit.username?.trim();
+  return username ? `@${username}` : "Artist";
+}
 
 export type ParsedMusic = {
   isMusic: boolean;
@@ -115,7 +132,16 @@ function parseTracks(suffix: string): MusicTrack[] {
       durationSeconds:
         typeof entry.durationSeconds === "number" ? entry.durationSeconds : null,
       lyrics: (entry.lyrics as string | undefined) ?? null,
-      isExplicit: entry.isExplicit === true
+      isExplicit: entry.isExplicit === true,
+      collaboratorCredits: Array.isArray(entry.collaboratorCredits)
+        ? (entry.collaboratorCredits as Record<string, unknown>[])
+            .map((credit) => ({
+              userID: String(credit.userID ?? ""),
+              username: String(credit.username ?? ""),
+              displayName: String(credit.displayName ?? "")
+            }))
+            .filter((credit) => credit.username || credit.displayName)
+        : []
     }));
   } catch {
     return [];
@@ -383,6 +409,8 @@ export function buildMusicCaption(input: MusicCaptionInput): string {
         if (track.audioURL) entry.audioURL = track.audioURL;
         if (track.durationSeconds != null) entry.durationSeconds = track.durationSeconds;
         if (track.lyrics) entry.lyrics = track.lyrics;
+        // Preserve featured-artist credits so web edits don't drop them.
+        if (track.collaboratorCredits?.length) entry.collaboratorCredits = track.collaboratorCredits;
         return entry;
       })
     );
