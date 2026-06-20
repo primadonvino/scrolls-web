@@ -10,6 +10,8 @@ import { UploadProgressBar } from "@/components/compose/UploadProgressBar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { createMediaPost, createTextPost, uploadPostMedia } from "@/lib/api/scrolls";
 import { buildVideoCaption, VIDEO_CATEGORY_OPTIONS, type VideoCategory } from "@/lib/video/category";
+import { canPostCarousel } from "@/lib/account/entitlements";
+import { buildCarouselCaption, CAROUSEL_MAX_EXTRAS } from "@/lib/post/carousel";
 import { readFreshSession, readSession } from "@/lib/auth/session";
 import type { AuthSession } from "@/lib/types/scrolls";
 
@@ -32,6 +34,9 @@ export default function ComposePage() {
   const [previewURL, setPreviewURL] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
   const [videoCategory, setVideoCategory] = useState<VideoCategory>("video");
+  // Carousel extras (eligible accounts only) — primary photo + up to 3 more.
+  const [extraPhotos, setExtraPhotos] = useState<{ file: File; url: string }[]>([]);
+  const extraInputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +60,7 @@ export default function ComposePage() {
 
   const user = session?.user;
   const displayName = user?.displayName ?? user?.display_name ?? user?.username ?? "Scrolls";
+  const carouselEligible = canPostCarousel(user);
 
   function selectMode(next: Mode) {
     setMode(next);
@@ -63,6 +69,45 @@ export default function ComposePage() {
     setAspectRatio(null);
     if (previewURL?.startsWith("blob:")) URL.revokeObjectURL(previewURL);
     setPreviewURL(null);
+    clearExtras();
+  }
+
+  function clearExtras() {
+    setExtraPhotos((current) => {
+      current.forEach((item) => URL.revokeObjectURL(item.url));
+      return [];
+    });
+  }
+
+  function pickExtras(event: ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (!picked.length) return;
+    const room = CAROUSEL_MAX_EXTRAS - extraPhotos.length;
+    const added: { file: File; url: string }[] = [];
+    for (const item of picked.slice(0, room)) {
+      if (!PHOTO_TYPES.includes(item.type)) {
+        setError("Carousel photos must be JPEG, PNG, or WebP.");
+        continue;
+      }
+      if (item.size > MAX_PHOTO_BYTES) {
+        setError(`"${item.name}" is too large (max 25MB).`);
+        continue;
+      }
+      added.push({ file: item, url: URL.createObjectURL(item) });
+    }
+    if (added.length) {
+      setError(null);
+      setExtraPhotos((current) => [...current, ...added]);
+    }
+  }
+
+  function removeExtra(index: number) {
+    setExtraPhotos((current) => {
+      const item = current[index];
+      if (item) URL.revokeObjectURL(item.url);
+      return current.filter((_, i) => i !== index);
+    });
   }
 
   function pickFile(event: ChangeEvent<HTMLInputElement>) {
@@ -120,8 +165,20 @@ export default function ComposePage() {
           return;
         }
         const uploaded = await uploadPostMedia(fresh.token, fresh.user.id, file, setProgress);
-        const mediaCaption =
-          mode === "video" ? buildVideoCaption(caption, videoCategory) : caption.trim() || null;
+        let mediaCaption: string | null;
+        if (mode === "video") {
+          mediaCaption = buildVideoCaption(caption, videoCategory);
+        } else {
+          // Photo: upload carousel extras (eligible accounts only) and encode
+          // their URLs into the caption marker; otherwise a plain photo.
+          const extras = canPostCarousel(fresh.user) ? extraPhotos.slice(0, CAROUSEL_MAX_EXTRAS) : [];
+          const extraURLs: string[] = [];
+          for (const extra of extras) {
+            const up = await uploadPostMedia(fresh.token, fresh.user.id, extra.file);
+            extraURLs.push(up.publicURL);
+          }
+          mediaCaption = buildCarouselCaption(caption, extraURLs);
+        }
         await createMediaPost(
           {
             authorID: fresh.user.id,
@@ -236,6 +293,58 @@ export default function ComposePage() {
                     `Tap to choose a ${mode}`
                   )}
                 </button>
+                {mode === "photo" ? (
+                  carouselEligible ? (
+                    <div className="mt-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-sm font-bold text-white/70">
+                          More photos{extraPhotos.length ? ` · ${extraPhotos.length}/${CAROUSEL_MAX_EXTRAS}` : ""}
+                        </p>
+                        <input
+                          ref={extraInputRef}
+                          type="file"
+                          accept={PHOTO_TYPES.join(",")}
+                          multiple
+                          onChange={pickExtras}
+                          className="hidden"
+                        />
+                        {extraPhotos.length < CAROUSEL_MAX_EXTRAS ? (
+                          <button
+                            type="button"
+                            onClick={() => extraInputRef.current?.click()}
+                            className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white/80 hover:bg-white/10"
+                          >
+                            + Add photos
+                          </button>
+                        ) : null}
+                      </div>
+                      {extraPhotos.length ? (
+                        <div className="flex flex-wrap gap-2">
+                          {extraPhotos.map((item, index) => (
+                            <div key={item.url} className="relative h-20 w-20 overflow-hidden rounded-xl border border-white/10">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={item.url} alt="" className="h-full w-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => removeExtra(index)}
+                                className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/70 text-xs font-bold text-white"
+                                aria-label="Remove photo"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-white/40">Add up to {CAROUSEL_MAX_EXTRAS} more for a swipeable carousel.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-white/55">
+                      Multi-photo carousels are available with a verified or Gold account.
+                    </p>
+                  )
+                ) : null}
                 <input
                   value={caption}
                   onChange={(event) => setCaption(event.target.value.slice(0, MAX_CAPTION))}
