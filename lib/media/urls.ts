@@ -11,6 +11,26 @@ export function objectURL(bucket?: string | null, objectKey?: string | null) {
   return `${mediaBase}/${objectKey}`;
 }
 
+type PlaylistCoverFields = {
+  coverBucket?: string | null;
+  cover_bucket?: string | null;
+  coverObjectKey?: string | null;
+  cover_object_key?: string | null;
+  coverRef?: string | null;
+  cover_ref?: string | null;
+};
+
+/** Resolves a playlist cover: prefer provider/bucket/objectKey, fall back to coverRef. */
+export function playlistCoverURL(playlist?: PlaylistCoverFields | null): string | null {
+  if (!playlist) return null;
+  const fromObject = objectURL(
+    playlist.coverBucket ?? playlist.cover_bucket,
+    playlist.coverObjectKey ?? playlist.cover_object_key
+  );
+  if (fromObject) return fromObject;
+  return normalizedAssetURL(playlist.coverRef ?? playlist.cover_ref);
+}
+
 export function userAvatarURL(user?: ScrollsUser | null) {
   if (!user) return null;
   const base =

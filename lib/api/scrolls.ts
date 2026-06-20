@@ -185,7 +185,21 @@ export type MusicPlaylist = {
   title: string;
   visibility?: string | null;
   coverRef?: string | null;
+  cover_ref?: string | null;
+  coverProvider?: string | null;
+  cover_provider?: string | null;
+  coverBucket?: string | null;
+  cover_bucket?: string | null;
+  coverObjectKey?: string | null;
+  cover_object_key?: string | null;
   trackCount?: number | null;
+};
+
+export type PlaylistCover = {
+  coverRef?: string | null;
+  coverProvider?: string | null;
+  coverBucket?: string | null;
+  coverObjectKey?: string | null;
 };
 
 export type PlaylistTrackInput = {
@@ -204,12 +218,39 @@ export async function fetchMyPlaylists(token: string): Promise<MusicPlaylist[]> 
   return Array.isArray(result) ? result : result.playlists ?? [];
 }
 
-export async function createPlaylist(title: string, token: string): Promise<MusicPlaylist> {
+export async function createPlaylist(
+  title: string,
+  token: string,
+  cover?: PlaylistCover
+): Promise<MusicPlaylist> {
   return request<MusicPlaylist>(
     "/music/playlists",
-    { method: "POST", body: JSON.stringify({ title: title.trim() }) },
+    { method: "POST", body: JSON.stringify({ title: title.trim(), ...(cover ?? {}) }) },
     token
   );
+}
+
+/**
+ * Uploads a playlist cover image to R2 under the owner-scoped playlist path and
+ * returns the cover fields to send with playlist creation. Mirrors the iOS
+ * `music/<owner>/playlists/<uuid>/cover/...` storage path.
+ */
+export async function uploadPlaylistCover(
+  token: string,
+  ownerID: string,
+  file: File
+): Promise<{ provider: string; bucket: string; objectKey: string; publicURL: string }> {
+  const contentType = file.type || "image/jpeg";
+  const ext = contentType.includes("png") ? "png" : "jpg";
+  const objectKey = `music/${ownerID.toLowerCase()}/playlists/${crypto.randomUUID()}/cover/cover.${ext}`;
+  const uploadToken = await requestUploadToken(token, { contentType, objectKey, maxBytes: 25 * 1024 * 1024 });
+  const publicURL = await uploadFileToR2(uploadToken, file);
+  return {
+    provider: uploadToken.provider,
+    bucket: uploadToken.bucket,
+    objectKey: uploadToken.objectKey,
+    publicURL
+  };
 }
 
 export async function addTrackToPlaylist(playlistID: string, track: PlaylistTrackInput, token: string) {

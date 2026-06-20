@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Avatar } from "@/components/Avatar";
 import { usePlayer } from "@/components/player/PlayerProvider";
 import {
   addTrackToPlaylist,
   createPlaylist,
   fetchMyPlaylists,
+  uploadPlaylistCover,
   type MusicPlaylist
 } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
-import { postCoverURL, postMediaURL } from "@/lib/media/urls";
+import { playlistCoverURL, postCoverURL, postMediaURL } from "@/lib/media/urls";
 import {
   creditLabel,
   formatDuration,
@@ -375,6 +376,18 @@ function PlaylistSheet({ post, track, onClose }: { post: ScrollsPost; track: Mus
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
+  const [cover, setCover] = useState<{ file: File; url: string } | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+
+  function pickCover(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return;
+    if (file.size > 25 * 1024 * 1024) return;
+    if (cover) URL.revokeObjectURL(cover.url);
+    setCover({ file, url: URL.createObjectURL(file) });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -429,7 +442,16 @@ function PlaylistSheet({ post, track, onClose }: { post: ScrollsPost; track: Mus
     if (!session?.token) return;
     setBusy(true);
     try {
-      const playlist = await createPlaylist(title, session.token);
+      let coverFields;
+      if (cover && session.user?.id) {
+        const uploaded = await uploadPlaylistCover(session.token, session.user.id, cover.file);
+        coverFields = {
+          coverProvider: uploaded.provider,
+          coverBucket: uploaded.bucket,
+          coverObjectKey: uploaded.objectKey
+        };
+      }
+      const playlist = await createPlaylist(title, session.token, coverFields);
       await addTrackToPlaylist(
         playlist.id,
         {
@@ -458,9 +480,32 @@ function PlaylistSheet({ post, track, onClose }: { post: ScrollsPost; track: Mus
       {state === "ready" && !done ? (
         <div className="space-y-1">
           {playlists.map((playlist) => (
-            <SheetItem key={playlist.id} label={playlist.title} onClick={() => addTo(playlist.id, playlist.title)} disabled={busy} />
+            <button
+              key={playlist.id}
+              type="button"
+              onClick={() => addTo(playlist.id, playlist.title)}
+              disabled={busy}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition enabled:hover:bg-white/10 disabled:opacity-45"
+            >
+              <PlaylistCover playlist={playlist} />
+              <span className="min-w-0 flex-1 truncate text-sm font-bold text-white/85">{playlist.title}</span>
+            </button>
           ))}
-          <div className="mt-2 flex gap-2 px-1">
+          <div className="mt-3 flex items-center gap-2 px-1">
+            <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={pickCover} className="hidden" />
+            <button
+              type="button"
+              onClick={() => coverInputRef.current?.click()}
+              className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-dashed border-white/20 bg-black/40 text-white/50"
+              aria-label="Choose playlist cover"
+            >
+              {cover ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={cover.url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                "＋"
+              )}
+            </button>
             <input
               value={newTitle}
               onChange={(event) => setNewTitle(event.target.value.slice(0, 80))}
@@ -479,6 +524,21 @@ function PlaylistSheet({ post, track, onClose }: { post: ScrollsPost; track: Mus
         </div>
       ) : null}
     </SheetBackdrop>
+  );
+}
+
+/** Playlist cover thumbnail — custom cover when set, else the music-list icon. */
+function PlaylistCover({ playlist }: { playlist: MusicPlaylist }) {
+  const url = playlistCoverURL(playlist);
+  return (
+    <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-scrolls-panel2 text-base text-white/55">
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" className="h-full w-full object-cover" />
+      ) : (
+        "♪"
+      )}
+    </span>
   );
 }
 
