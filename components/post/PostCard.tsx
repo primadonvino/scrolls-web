@@ -11,6 +11,7 @@ import { PostActions } from "@/components/post/PostActions";
 import { UserBadges } from "@/components/UserBadges";
 import { isArticlePost } from "@/lib/article/article";
 import { postMediaURL } from "@/lib/media/urls";
+import { featuredDisplayArtist, featuredDisplayTitle, parseFeaturedMusic } from "@/lib/music/featured";
 import { isMusicOrPodcast, photoCarouselURLs, strippedCaption } from "@/lib/music/markers";
 import { parseVideoCategory, videoCategoryLabel } from "@/lib/video/category";
 import type { ScrollsPost } from "@/lib/types/scrolls";
@@ -37,6 +38,7 @@ export function PostCard({
   const isArticle = !isMusic && isArticlePost(post);
   const isVideo = !isMusic && !isArticle && (post.mediaPreview?.type ?? post.type) === "video";
   const videoLabel = isVideo ? videoCategoryLabel(parseVideoCategory(post.caption)) : null;
+  const featured = !isMusic && !isArticle ? parseFeaturedMusic(post.caption) : null;
   const displayCaption = strippedCaption(caption);
   const carouselExtras = !isMusic && !isArticle ? photoCarouselURLs(post.caption) : [];
   const carouselImages = carouselExtras.length
@@ -88,6 +90,16 @@ export function PostCard({
         <span className="mt-3 inline-block rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-xs font-bold uppercase tracking-wide text-scrolls-gold">
           {videoLabel}
         </span>
+      ) : null}
+      {featured ? (
+        <Link
+          href={`/scroll/${encodeURIComponent(featured.postID)}`}
+          className="mt-3 flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-3 py-2 text-sm transition hover:bg-white/10"
+        >
+          <span className="text-scrolls-gold">♪</span>
+          <span className="min-w-0 truncate font-bold text-white/85">{featuredDisplayTitle(featured)}</span>
+          <span className="shrink-0 text-white/45">· {featuredDisplayArtist(featured)}</span>
+        </Link>
       ) : null}
       {!isMusic && !isArticle && displayCaption ? (
         <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-white/85">{displayCaption}</p>

@@ -11,6 +11,8 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { createMediaPost, createTextPost, uploadPostMedia } from "@/lib/api/scrolls";
 import { buildVideoCaption, VIDEO_CATEGORY_OPTIONS, type VideoCategory } from "@/lib/video/category";
 import { canPostCarousel, hasSubscriberBenefits, videoPolicy } from "@/lib/account/entitlements";
+import { FeaturedMusicSelector } from "@/components/compose/FeaturedMusicPicker";
+import { buildFeaturedMusicCaption, type FeaturedMusicLink } from "@/lib/music/featured";
 import { buildCarouselCaption, CAROUSEL_MAX_EXTRAS } from "@/lib/post/carousel";
 import { readFreshSession, readSession } from "@/lib/auth/session";
 import type { AuthSession } from "@/lib/types/scrolls";
@@ -48,6 +50,8 @@ export default function ComposePage() {
   // Carousel extras (eligible accounts only) — primary photo + up to 3 more.
   const [extraPhotos, setExtraPhotos] = useState<{ file: File; url: string }[]>([]);
   const extraInputRef = useRef<HTMLInputElement | null>(null);
+  // Featured music attached to a photo/video post (iOS captionWithFeaturedMusic).
+  const [featuredMusic, setFeaturedMusic] = useState<FeaturedMusicLink | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +87,7 @@ export default function ComposePage() {
     if (previewURL?.startsWith("blob:")) URL.revokeObjectURL(previewURL);
     setPreviewURL(null);
     clearExtras();
+    setFeaturedMusic(null);
   }
 
   function clearExtras() {
@@ -201,6 +206,11 @@ export default function ComposePage() {
             extraURLs.push(up.publicURL);
           }
           mediaCaption = buildCarouselCaption(caption, extraURLs);
+        }
+        // Attach featured music (photo or video) — prepends the iOS-compatible
+        // [FEATURED_MUSIC_BASE64] marker.
+        if (featuredMusic) {
+          mediaCaption = buildFeaturedMusicCaption(mediaCaption, featuredMusic);
         }
         await createMediaPost(
           {
@@ -412,6 +422,11 @@ export default function ComposePage() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                ) : null}
+                {mode === "photo" || mode === "video" ? (
+                  <div className="mt-2">
+                    <FeaturedMusicSelector value={featuredMusic} onChange={setFeaturedMusic} />
                   </div>
                 ) : null}
               </>
