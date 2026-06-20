@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PostCard } from "@/components/post/PostCard";
 import { fetchAuthorPosts } from "@/lib/api/scrolls";
+import { fetchAuthorRescrolls } from "@/lib/api/rescrolls";
 import { readFreshSession } from "@/lib/auth/session";
 import { categoryLabel, POST_CATEGORY_MENU, postMatchesCategory, type PostCategory } from "@/lib/post/category";
 import type { ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
@@ -29,6 +30,7 @@ export function ProfilePosts({
   pinnedPostId?: string;
 }) {
   const [posts, setPosts] = useState<ScrollsPost[]>(initialPosts);
+  const [rescrollPosts, setRescrollPosts] = useState<ScrollsPost[]>([]);
   const [tab, setTab] = useState<Tab>("scrolls");
   const [category, setCategory] = useState<PostCategory>("all");
   const [openSection, setOpenSection] = useState<string | null>(null);
@@ -36,6 +38,11 @@ export function ProfilePosts({
 
   useEffect(() => {
     let cancelled = false;
+    // Rescrolls have no server list endpoint — read them straight from the
+    // public tables (works signed-out too).
+    fetchAuthorRescrolls(profile).then((rescrolls) => {
+      if (!cancelled) setRescrollPosts(rescrolls);
+    });
     (async () => {
       const session = await readFreshSession();
       if (!session?.token) {
@@ -54,11 +61,14 @@ export function ProfilePosts({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.id]);
 
   const shown = pinnedPostId ? posts.filter((post) => post.id !== pinnedPostId) : posts;
   const scrolls = shown.filter((post) => !isRescroll(post));
-  const rescrolls = shown.filter(isRescroll);
+  // Authored posts never include rescrolls (the by-author endpoint omits them),
+  // so the Rescrolls tab is sourced from the dedicated rescroll fetch.
+  const rescrolls = rescrollPosts;
   const tabList = tab === "scrolls" ? scrolls : rescrolls;
   const visible = category === "all" ? tabList : tabList.filter((post) => postMatchesCategory(post, category));
   const activeLabel = categoryLabel(category);
