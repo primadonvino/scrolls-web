@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PostCard } from "@/components/post/PostCard";
 import { fetchAuthorPosts } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
-import { POST_CATEGORIES, postMatchesCategory, type PostCategory } from "@/lib/post/category";
+import { categoryLabel, POST_CATEGORY_MENU, postMatchesCategory, type PostCategory } from "@/lib/post/category";
 import type { ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
 
 type Tab = "scrolls" | "rescrolls";
@@ -31,6 +31,7 @@ export function ProfilePosts({
   const [posts, setPosts] = useState<ScrollsPost[]>(initialPosts);
   const [tab, setTab] = useState<Tab>("scrolls");
   const [category, setCategory] = useState<PostCategory>("all");
+  const [openSection, setOpenSection] = useState<string | null>(null);
   const [loading, setLoading] = useState(initialPosts.length === 0);
 
   useEffect(() => {
@@ -60,7 +61,12 @@ export function ProfilePosts({
   const rescrolls = shown.filter(isRescroll);
   const tabList = tab === "scrolls" ? scrolls : rescrolls;
   const visible = category === "all" ? tabList : tabList.filter((post) => postMatchesCategory(post, category));
-  const categoryLabel = POST_CATEGORIES.find((option) => option.value === category)?.label ?? "All Scrolls";
+  const activeLabel = categoryLabel(category);
+
+  function selectCategory(value: PostCategory, target: HTMLElement) {
+    setCategory(value);
+    target.closest("details")?.removeAttribute("open");
+  }
 
   return (
     <div className="mt-8">
@@ -82,26 +88,55 @@ export function ProfilePosts({
 
         <details className="group relative ml-auto">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-white/12 px-4 py-2 text-sm font-bold text-white/80 transition hover:bg-white/10">
-            {categoryLabel}
+            {activeLabel}
             <span className="text-white/40 transition group-open:rotate-180">⌄</span>
           </summary>
-          <div className="absolute right-0 z-30 mt-2 w-52 overflow-hidden rounded-2xl border border-white/10 bg-scrolls-panel p-1 shadow-glow">
-            {POST_CATEGORIES.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={(event) => {
-                  setCategory(option.value);
-                  event.currentTarget.closest("details")?.removeAttribute("open");
-                }}
-                className={`block w-full rounded-xl px-4 py-2.5 text-left text-sm font-bold transition hover:bg-white/10 ${
-                  category === option.value ? "text-scrolls-gold" : "text-white/85"
-                }`}
-              >
-                {category === option.value ? "✓ " : ""}
-                {option.label}
-              </button>
-            ))}
+          <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-2xl border border-white/10 bg-scrolls-panel p-1 shadow-glow">
+            {POST_CATEGORY_MENU.map((node) => {
+              if (!("children" in node)) {
+                return (
+                  <button
+                    key={node.value}
+                    type="button"
+                    onClick={(event) => selectCategory(node.value, event.currentTarget)}
+                    className={`block w-full rounded-xl px-4 py-2.5 text-left text-sm font-bold transition hover:bg-white/10 ${
+                      category === node.value ? "text-scrolls-gold" : "text-white/85"
+                    }`}
+                  >
+                    {category === node.value ? "✓ " : ""}
+                    {node.label}
+                  </button>
+                );
+              }
+              const expanded = openSection === node.label || node.children.some((leaf) => leaf.value === category);
+              return (
+                <div key={node.label}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenSection((current) => (current === node.label ? null : node.label))}
+                    className="flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left text-sm font-bold text-white/85 transition hover:bg-white/10"
+                  >
+                    {node.label}
+                    <span className={`text-white/40 transition ${expanded ? "rotate-180" : ""}`}>⌄</span>
+                  </button>
+                  {expanded
+                    ? node.children.map((leaf) => (
+                        <button
+                          key={leaf.value}
+                          type="button"
+                          onClick={(event) => selectCategory(leaf.value, event.currentTarget)}
+                          className={`block w-full rounded-xl py-2 pl-8 pr-4 text-left text-sm font-bold transition hover:bg-white/10 ${
+                            category === leaf.value ? "text-scrolls-gold" : "text-white/75"
+                          }`}
+                        >
+                          {category === leaf.value ? "✓ " : ""}
+                          {leaf.label}
+                        </button>
+                      ))
+                    : null}
+                </div>
+              );
+            })}
           </div>
         </details>
       </div>
@@ -111,7 +146,7 @@ export function ProfilePosts({
       ) : visible.length === 0 ? (
         <p className="text-white/50">
           {category !== "all"
-            ? `No ${categoryLabel.toLowerCase()} here.`
+            ? `No ${activeLabel.toLowerCase()} here.`
             : tab === "scrolls"
               ? `@${profile.username} hasn't posted any scrolls yet.`
               : "No rescrolls yet."}

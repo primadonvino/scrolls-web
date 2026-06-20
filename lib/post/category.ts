@@ -10,23 +10,57 @@ export type PostCategory =
   | "writing"
   | "drawings"
   | "photos"
+  | "podcasts"
   | "video"
   | "shortFilm"
   | "musicVideo"
-  | "podcasts"
-  | "music";
+  | "music"
+  | "musicAlbums"
+  | "musicSingles";
 
-export const POST_CATEGORIES: { value: PostCategory; label: string }[] = [
+export type CategoryLeaf = { value: PostCategory; label: string };
+export type CategoryNode = CategoryLeaf | { label: string; children: CategoryLeaf[] };
+
+/**
+ * Two-level filter menu mirroring the iOS profile scroll filter: Video and
+ * Music drill into submenus (the rest are flat), in the same order as iOS.
+ */
+export const POST_CATEGORY_MENU: CategoryNode[] = [
   { value: "all", label: "All Scrolls" },
   { value: "writing", label: "Writing" },
   { value: "drawings", label: "Drawings" },
   { value: "photos", label: "Photos" },
-  { value: "video", label: "All video" },
-  { value: "shortFilm", label: "Short film" },
-  { value: "musicVideo", label: "Music video" },
   { value: "podcasts", label: "Podcasts" },
-  { value: "music", label: "Music" }
+  {
+    label: "Video",
+    children: [
+      { value: "video", label: "All Video" },
+      { value: "shortFilm", label: "Short Film" },
+      { value: "musicVideo", label: "Music Video" }
+    ]
+  },
+  {
+    label: "Music",
+    children: [
+      { value: "music", label: "All" },
+      { value: "musicAlbums", label: "Albums" },
+      { value: "musicSingles", label: "Singles/EPs" }
+    ]
+  }
 ];
+
+/** Display label for a selected category value (used on the filter button). */
+export function categoryLabel(value: PostCategory): string {
+  for (const node of POST_CATEGORY_MENU) {
+    if ("children" in node) {
+      const child = node.children.find((leaf) => leaf.value === value);
+      if (child) return `${node.label} · ${child.label}`;
+    } else if (node.value === value) {
+      return node.label;
+    }
+  }
+  return "All Scrolls";
+}
 
 function isDrawing(post: ScrollsPost, type: string): boolean {
   if (type !== "photo") return false;
@@ -44,6 +78,10 @@ export function postMatchesCategory(post: ScrollsPost, category: PostCategory): 
   switch (category) {
     case "music":
       return music.isMusic;
+    case "musicAlbums":
+      return music.isMusic && music.releaseType === "album";
+    case "musicSingles":
+      return music.isMusic && music.releaseType === "singlesEPs";
     case "podcasts":
       return music.isPodcast;
     case "video":
