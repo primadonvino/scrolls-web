@@ -228,3 +228,55 @@ export type NotificationsResponse = {
   items: ScrollsNotification[];
   nextCursor?: string | null;
 };
+
+export type AdSubmissionPost = {
+  id: UUID;
+  type: ScrollsPost["type"];
+  caption?: string | null;
+  textBody?: string | null;
+  websiteURL?: string | null;
+  locationCity?: string | null;
+  assetRef?: string | null;
+  assetProvider?: string | null;
+  assetBucket?: string | null;
+  assetObjectKey?: string | null;
+  coverImageRef?: string | null;
+  coverProvider?: string | null;
+  coverBucket?: string | null;
+  coverObjectKey?: string | null;
+  aspectRatio?: number | null;
+  reportCount?: number;
+  createdAt?: string;
+};
+
+export type AdSubmission = {
+  id: UUID;
+  postID: UUID;
+  businessUserID: UUID;
+  targetCity?: string | null;
+  campaignType?: string | null;
+  websiteURL?: string | null;
+  status: "pending" | "approved" | "rejected" | "paused" | string;
+  moderationState?: string | null;
+  moderationNotes?: string | null;
+  reviewNotes?: string | null;
+  reviewedBy?: UUID | null;
+  reviewedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  post?: AdSubmissionPost | null;
+  businessUser?: ScrollsUser | null;
+  reviewer?: ScrollsUser | null;
+};
+
+export type AdDeliveryItem = {
+  submission: AdSubmission;
+  post: AdSubmissionPost;
+  businessUser?: ScrollsUser | null;
+};
+
+export type CuratedAdSlot = {
+  slotIndex: number;
+  submissionID?: UUID | null;
+  postID?: UUID | null;
+};

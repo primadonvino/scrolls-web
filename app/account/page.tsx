@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertTriangle, LogOut, Trash2 } from "lucide-react";
+import { AlertTriangle, LogOut, Megaphone, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ThemeSelector } from "@/components/theme/ThemeSelector";
@@ -56,6 +56,7 @@ export default function AccountPage() {
 
   const user = session?.user;
   const displayName = user?.displayName ?? user?.display_name ?? user?.username ?? "Scrolls";
+  const isFounder = Boolean(user?.isFounder ?? user?.is_founder);
 
   return (
     <div>
@@ -108,6 +109,14 @@ export default function AccountPage() {
                 >
                   Followers &amp; requests
                 </a>
+                {isFounder ? (
+                  <a
+                    href="/account/ads"
+                    className="inline-flex items-center gap-2 rounded-full border border-scrolls-gold/35 px-5 py-3 text-sm font-bold text-scrolls-gold transition hover:bg-scrolls-gold/10"
+                  >
+                    <Megaphone size={18} /> Ad terminal
+                  </a>
+                ) : null}
                 <button
                   type="button"
                   onClick={signOut}

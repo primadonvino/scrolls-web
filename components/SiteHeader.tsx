@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Menu, Pen, Radio, Search, User, X } from "lucide-react";
+import { Home, Megaphone, Menu, Pen, Radio, Search, User, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { BrandMark } from "@/components/BrandMark";
@@ -25,12 +25,14 @@ export function SiteHeader() {
   // server/client markup mismatch.
   const [signedIn, setSignedIn] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
+  const [isFounder, setIsFounder] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const session = readSession();
     setSignedIn(Boolean(session?.token && session.user?.id));
     setUsername(session?.user?.username ?? null);
+    setIsFounder(Boolean(session?.user?.isFounder ?? session?.user?.is_founder));
   }, []);
 
   const accountHref = username ? `/user/${encodeURIComponent(username)}` : "/account";
@@ -41,6 +43,7 @@ export function SiteHeader() {
         { href: "/live", label: "Live", icon: <Radio size={20} /> },
         { href: "/circles", label: "Circles", icon: <CirclesIcon size={20} /> },
         { href: "/compose", label: "Create", icon: <Pen size={20} /> },
+        ...(isFounder ? [{ href: "/account/ads", label: "Ad terminal", icon: <Megaphone size={20} /> }] : []),
         { href: accountHref, label: "Profile", icon: <User size={20} /> }
       ]
     : [
