@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { SponsoredCard } from "@/components/ads/SponsoredCard";
 import { PostCard } from "@/components/post/PostCard";
 import { SiteHeader } from "@/components/SiteHeader";
-import { fetchCityPosts, fetchFeed } from "@/lib/api/scrolls";
+import { hasSubscriberBenefits } from "@/lib/account/entitlements";
+import { fetchAdDelivery, fetchCityPosts, fetchFeed } from "@/lib/api/scrolls";
 import { readFreshSession } from "@/lib/auth/session";
 import { browserSupabaseClient, setRealtimeAuth, type ScrollsRealtimeChannel } from "@/lib/realtime/supabase";
-import type { ScrollsPost } from "@/lib/types/scrolls";
+import type { AdDeliveryItem, ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState<ScrollsPost[]>([]);
@@ -14,6 +16,7 @@ export default function FeedPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [adItems, setAdItems] = useState<AdDeliveryItem[]>([]);
   // Feed scope: null = home "Scrolls" feed, otherwise a city name. Mirrors the
   // iOS/Android feed-header city selector.
   const [homeCity, setHomeCity] = useState<string | null>(null);
@@ -30,6 +33,16 @@ export default function FeedPage() {
         : await fetchFeed(session?.token, session?.user?.id);
       setPosts((current) => mergeFreshPosts(result.posts, current));
       setNextCursor(result.nextCursor);
+      if (session?.token && !isAdFreeUser(session.user)) {
+        try {
+          const delivery = await fetchAdDelivery(city, session.token, 6);
+          setAdItems(delivery);
+        } catch {
+          setAdItems([]);
+        }
+      } else {
+        setAdItems([]);
+      }
       setError(null);
     } catch (err) {
       if (!silent) setError(err instanceof Error ? err.message : "Could not load feed.");
@@ -189,9 +202,15 @@ export default function FeedPage() {
         {loading ? <p className="rounded-2xl bg-white/[0.04] p-5 text-white/60">Loading feed...</p> : null}
         {error ? <p className="rounded-2xl border border-red-400/30 bg-red-500/10 p-5 text-red-200">{error}</p> : null}
         <div className="space-y-6">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} onBlocked={removeBlockedAuthor} onDeleted={removeDeletedPost} />
-          ))}
+          {posts.map((post, index) => {
+            const ad = adForIndex(index, adItems);
+            return (
+              <Fragment key={post.id}>
+                <PostCard post={post} onBlocked={removeBlockedAuthor} onDeleted={removeDeletedPost} />
+                {ad ? <SponsoredCard item={ad} /> : null}
+              </Fragment>
+            );
+          })}
         </div>
         {nextCursor ? (
           <div ref={sentinelRef} className="mt-8 flex justify-center">
@@ -208,6 +227,22 @@ export default function FeedPage() {
       </section>
     </div>
   );
+}
+
+function adForIndex(index: number, ads: AdDeliveryItem[]) {
+  if (!ads.length) return null;
+  // Keep ads readable and sparse: first card after the third post, then every
+  // seven posts after that. This mirrors the iOS "sponsored cards in feed"
+  // rhythm without overwhelming the web feed.
+  if (index < 2) return null;
+  if ((index - 2) % 7 !== 0) return null;
+  const adIndex = Math.floor((index - 2) / 7) % ads.length;
+  return ads[adIndex] ?? null;
+}
+
+function isAdFreeUser(user?: ScrollsUser | null) {
+  // Ad-free is a Blue (verified) benefit on iOS — anyone above the free tier.
+  return hasSubscriberBenefits(user);
 }
 
 function rescrollKey(post: ScrollsPost): string | null {

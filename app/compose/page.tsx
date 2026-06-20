@@ -10,7 +10,7 @@ import { UploadProgressBar } from "@/components/compose/UploadProgressBar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { createMediaPost, createTextPost, uploadPostMedia } from "@/lib/api/scrolls";
 import { buildVideoCaption, VIDEO_CATEGORY_OPTIONS, type VideoCategory } from "@/lib/video/category";
-import { canPostCarousel } from "@/lib/account/entitlements";
+import { canPostCarousel, hasSubscriberBenefits, videoPolicy } from "@/lib/account/entitlements";
 import { buildCarouselCaption, CAROUSEL_MAX_EXTRAS } from "@/lib/post/carousel";
 import { readFreshSession, readSession } from "@/lib/auth/session";
 import type { AuthSession } from "@/lib/types/scrolls";
@@ -23,6 +23,17 @@ const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime"];
 const MAX_PHOTO_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
+
+/** Tier-aware message when a chosen video exceeds the account's length cap. */
+function videoLimitMessage(maxSeconds: number): string {
+  if (maxSeconds <= 7) {
+    return "Free accounts can post videos up to 7 seconds. Verify (Blue) for 60s, or go Gold for 10-minute videos.";
+  }
+  if (maxSeconds <= 60) {
+    return "Blue accounts can post videos up to 60 seconds. Go Gold for videos up to 10 minutes.";
+  }
+  return "Videos can be up to 10 minutes long.";
+}
 
 export default function ComposePage() {
   const router = useRouter();
@@ -61,6 +72,8 @@ export default function ComposePage() {
   const user = session?.user;
   const displayName = user?.displayName ?? user?.display_name ?? user?.username ?? "Scrolls";
   const carouselEligible = canPostCarousel(user);
+  const premiumEligible = hasSubscriberBenefits(user);
+  const vPolicy = videoPolicy(user);
 
   function selectMode(next: Mode) {
     setMode(next);
@@ -138,7 +151,17 @@ export default function ComposePage() {
     } else if (kind === "video") {
       const video = document.createElement("video");
       video.preload = "metadata";
-      video.onloadedmetadata = () => setAspectRatio(video.videoHeight ? video.videoWidth / video.videoHeight : null);
+      video.onloadedmetadata = () => {
+        setAspectRatio(video.videoHeight ? video.videoWidth / video.videoHeight : null);
+        // Enforce the per-tier video length cap (free 7s, Blue 60s, Gold 10m).
+        const max = vPolicy.maxDurationSeconds;
+        if (Number.isFinite(video.duration) && video.duration > max + 0.1) {
+          setError(videoLimitMessage(max));
+          setFile(null);
+          if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+          setPreviewURL(null);
+        }
+      };
       video.src = url;
     }
   }
@@ -249,7 +272,17 @@ export default function ComposePage() {
               ))}
             </div>
 
-            {mode === "music" ? (
+            {(mode === "music" || mode === "podcast" || mode === "article") && !premiumEligible ? (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/70">
+                <p className="font-bold text-white/90">
+                  {mode === "music" ? "Music releases" : mode === "podcast" ? "Podcasts" : "Articles"} are a verified benefit
+                </p>
+                <p className="mt-1 text-white/55">
+                  Uploading {mode === "music" ? "music" : mode === "podcast" ? "podcasts" : "articles"} is available for
+                  Blue verified, Gold, and founder accounts. Verify your account in the Scrolls app to unlock it.
+                </p>
+              </div>
+            ) : mode === "music" ? (
               <MusicComposer onPosted={() => router.push("/feed")} />
             ) : mode === "podcast" ? (
               <PodcastComposer onPosted={() => router.push("/feed")} />
@@ -293,6 +326,14 @@ export default function ComposePage() {
                     `Tap to choose a ${mode}`
                   )}
                 </button>
+                {mode === "video" ? (
+                  <p className="mt-3 text-xs text-white/40">
+                    {vPolicy.maxDurationSeconds >= 60
+                      ? `Up to ${Math.round(vPolicy.maxDurationSeconds / 60)} min`
+                      : `Up to ${vPolicy.maxDurationSeconds}s`}{" "}
+                    on your account ({vPolicy.tierLabel}).
+                  </p>
+                ) : null}
                 {mode === "photo" ? (
                   carouselEligible ? (
                     <div className="mt-3">
