@@ -1,7 +1,10 @@
 import { buildMusicCaption, type MusicReleaseType, type MusicTrack } from "@/lib/music/markers";
 import type {
+  AdDeliveryItem,
+  AdSubmission,
   AuthSession,
   CreatePostResponse,
+  CuratedAdSlot,
   FeedResponse,
   NotificationsResponse,
   ProfileUpdate,
@@ -150,6 +153,21 @@ export async function fetchAuthorPosts(authorID: string, token?: string) {
   const params = new URLSearchParams({ author_id: authorID.toLowerCase(), limit: "40" });
   const result = await request<{ posts?: ScrollsPost[]; items?: ScrollsPost[] } | ScrollsPost[]>(
     `/posts/by-author?${params}`,
+    { cache: "no-store" },
+    token
+  );
+  if (Array.isArray(result)) return result;
+  return result.posts ?? result.items ?? [];
+}
+
+/**
+ * Lists a user's rescrolls from the backend (feed-shaped). Throws if the
+ * endpoint isn't available so callers can fall back to a direct table read.
+ */
+export async function fetchRescrollsByAuthor(authorID: string, token?: string): Promise<ScrollsPost[]> {
+  const params = new URLSearchParams({ author_id: authorID.toLowerCase(), limit: "60" });
+  const result = await request<{ posts?: ScrollsPost[]; items?: ScrollsPost[] } | ScrollsPost[]>(
+    `/posts/rescrolls-by-author?${params}`,
     { cache: "no-store" },
     token
   );
@@ -755,6 +773,58 @@ export async function deleteReadNotifications(token: string) {
 
 export function unreadNotificationCount(items: ScrollsNotification[]) {
   return items.reduce((count, item) => count + (item.isRead ? 0 : 1), 0);
+}
+
+// ── Ads / Founder terminal ─────────────────────────────────────────────────
+
+export async function fetchAdDelivery(city?: string | null, token?: string, limit = 8) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (city) params.set("city", city);
+  return request<AdDeliveryItem[]>(`/ads/delivery?${params}`, { cache: "no-store" }, token);
+}
+
+export async function fetchAdSubmissions(
+  token: string,
+  filters: {
+    status?: string;
+    city?: string;
+    businessUserID?: string;
+    minReportCount?: number;
+    limit?: number;
+  } = {}
+) {
+  const params = new URLSearchParams({ limit: String(filters.limit ?? 80) });
+  if (filters.status) params.set("status", filters.status);
+  if (filters.city) params.set("city", filters.city);
+  if (filters.businessUserID) params.set("business_user_id", filters.businessUserID);
+  if (filters.minReportCount != null) params.set("min_report_count", String(filters.minReportCount));
+  return request<AdSubmission[]>(`/ads/submissions?${params}`, { cache: "no-store" }, token);
+}
+
+export async function reviewAdSubmission(
+  submissionID: string,
+  status: "approved" | "rejected" | "paused",
+  token: string,
+  reviewNotes?: string
+) {
+  return request<AdSubmission>(`/ads/${encodeURIComponent(submissionID)}/review`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      status,
+      reviewNotes: reviewNotes?.trim() || undefined
+    })
+  }, token);
+}
+
+export async function fetchCuratedAdSlots(token: string) {
+  return request<CuratedAdSlot[]>("/ads/curated-slots", { cache: "no-store" }, token);
+}
+
+export async function updateCuratedAdSlots(slots: Array<{ slotIndex: number; postID: string | null }>, token: string) {
+  return request<CuratedAdSlot[]>("/ads/curated-slots", {
+    method: "POST",
+    body: JSON.stringify({ slots })
+  }, token);
 }
 
 // ── Owner post management (Phase 3) ─────────────────────────────────────────

@@ -1,15 +1,25 @@
+import { fetchRescrollsByAuthor } from "@/lib/api/scrolls";
 import { browserSupabaseClient } from "@/lib/realtime/supabase";
 import type { ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
 
 /**
- * Loads a profile's rescrolls. There is no server endpoint that lists a user's
- * rescrolls (the iOS app shows them from local state, and `/posts/by-author`
- * only returns authored posts), so we read them straight from the public-select
- * `rescrolls` / `posts` / `users` tables via Supabase REST and assemble rescroll
- * post objects in the same shape the feed produces (id = rescroll id, author =
- * the rescroller, rescrollOrigin = the original post's author/caption).
+ * Loads a profile's rescrolls. Prefers the backend `/posts/rescrolls-by-author`
+ * endpoint (feed-shaped, authoritative); if it isn't deployed yet it falls back
+ * to reading the public-select `rescrolls` / `posts` / `users` tables directly
+ * via Supabase REST and assembling the rescroll posts client-side.
  */
-export async function fetchAuthorRescrolls(profile: ScrollsUser): Promise<ScrollsPost[]> {
+export async function fetchAuthorRescrolls(profile: ScrollsUser, token?: string): Promise<ScrollsPost[]> {
+  if (profile?.id) {
+    try {
+      return await fetchRescrollsByAuthor(profile.id, token);
+    } catch {
+      // Endpoint not available yet — fall back to the direct table read below.
+    }
+  }
+  return fetchAuthorRescrollsDirect(profile);
+}
+
+async function fetchAuthorRescrollsDirect(profile: ScrollsUser): Promise<ScrollsPost[]> {
   const supabase = browserSupabaseClient();
   if (!supabase || !profile?.id) return [];
   const profileId = profile.id.toLowerCase();
