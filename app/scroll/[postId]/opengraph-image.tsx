@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og";
 import { fetchPost } from "@/lib/api/scrolls";
 import { parseArticle } from "@/lib/article/article";
-import { postCoverURL, postMediaURL, userAvatarURL } from "@/lib/media/urls";
+import { parsePlaylistPost } from "@/lib/music/playlist";
+import { playlistCoverURL, postCoverURL, postMediaURL, userAvatarURL } from "@/lib/media/urls";
 import { parseMusicPost, strippedCaption } from "@/lib/music/markers";
 import { loadRemoteImage } from "@/lib/og/remoteImage";
 
@@ -31,9 +32,13 @@ export default async function Image({ params }: { params: Promise<{ postId: stri
       const avatar = userAvatarURL(author);
       // Only remote avatars load in the edge runtime (skip the /icon.png fallback).
       avatarURL = avatar && /^https?:\/\//.test(avatar) ? avatar : null;
+      const playlist = parsePlaylistPost(post.caption);
       const music = parseMusicPost(post.caption);
       const article = parseArticle(post);
-      if (music.isMusic || music.isPodcast) {
+      if (playlist) {
+        kind = "Playlist";
+        title = playlist.title;
+      } else if (music.isMusic || music.isPodcast) {
         kind = music.isPodcast ? "Podcast" : "Music";
         title = music.title ?? handle;
       } else if (article) {
@@ -43,7 +48,7 @@ export default async function Image({ params }: { params: Promise<{ postId: stri
         kind = "Scroll";
         title = strippedCaption(post.caption ?? undefined)?.trim() || handle;
       }
-      mediaURL = postCoverURL(post) ?? postMediaURL(post) ?? null;
+      mediaURL = (playlist ? playlistCoverURL(playlist) : null) ?? postCoverURL(post) ?? postMediaURL(post) ?? null;
     }
   } catch {
     // Render the generic card.

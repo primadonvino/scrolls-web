@@ -71,6 +71,8 @@ export function PostCard({
           <p className="whitespace-pre-wrap text-[15px] font-semibold leading-relaxed text-white/90">{quoteText}</p>
         </div>
       ) : null}
+      {/* Quote rescrolls render the original as a distinct embedded card (X-style). */}
+      <div className={quoteText ? "rounded-2xl border border-white/12 bg-white/[0.02] p-3" : "contents"}>
       <Link href={`/user/${encodeURIComponent(username)}`} className="mb-4 flex items-center gap-3">
         <Avatar user={author} size={44} />
         <div className="min-w-0">
@@ -81,6 +83,19 @@ export function PostCard({
           <div className="truncate text-sm text-white/55">@{username}</div>
         </div>
       </Link>
+      {featured ? (
+        <Link
+          href={`/scroll/${encodeURIComponent(featured.postID)}`}
+          className="-mt-2 mb-3 inline-flex max-w-full items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-3 py-1.5 text-xs transition hover:bg-white/10"
+        >
+          <span className="text-scrolls-gold">♪</span>
+          <span className="min-w-0 truncate text-white/85">
+            <span className="font-bold">{featuredDisplayTitle(featured)}</span>
+            <span className="text-white/45"> · {featuredDisplayArtist(featured)}</span>
+          </span>
+        </Link>
+      ) : null}
+      {featured && isPhoto ? <FeaturedAudioSnippet targetRef={articleRef} link={featured} /> : null}
       {playlistMeta ? (
         <PlaylistCard post={post} meta={playlistMeta} />
       ) : isMusic ? (
@@ -99,20 +114,10 @@ export function PostCard({
           {videoLabel}
         </span>
       ) : null}
-      {featured ? (
-        <Link
-          href={`/scroll/${encodeURIComponent(featured.postID)}`}
-          className="mt-3 flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-3 py-2 text-sm transition hover:bg-white/10"
-        >
-          <span className="text-scrolls-gold">♪</span>
-          <span className="min-w-0 truncate font-bold text-white/85">{featuredDisplayTitle(featured)}</span>
-          <span className="shrink-0 text-white/45">· {featuredDisplayArtist(featured)}</span>
-        </Link>
-      ) : null}
-      {featured && isPhoto ? <FeaturedAudioSnippet targetRef={articleRef} link={featured} /> : null}
       {!isMusic && !isArticle && displayCaption ? (
         <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-white/85">{displayCaption}</p>
       ) : null}
+      </div>
       <PostActions
         post={post}
         onBlocked={onBlocked}
