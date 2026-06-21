@@ -32,9 +32,6 @@ type Candidate = {
   searchText: string;
 };
 
-const CHIPS = ["For you", "Trending", "Original audio", "Saved", "Albums", "Singles/EPs"] as const;
-type Chip = (typeof CHIPS)[number];
-
 function joinArtists(names: string[]): string {
   const clean = names.map((n) => n.trim()).filter(Boolean);
   if (clean.length <= 1) return clean[0] ?? "";
@@ -168,7 +165,6 @@ function MusicPickerSheet({
   const [loading, setLoading] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [query, setQuery] = useState("");
-  const [chip, setChip] = useState<Chip>("For you");
 
   useEffect(() => {
     let cancelled = false;
@@ -194,17 +190,9 @@ function MusicPickerSheet({
   }, []);
 
   const filtered = useMemo(() => {
-    let list = candidates;
-    if (chip === "Saved") list = list.filter((c) => isSelected(c.link, selected));
-    else if (chip === "Albums") list = list.filter((c) => c.releaseType === "album");
-    else if (chip === "Singles/EPs") list = list.filter((c) => c.releaseType === "singlesEPs");
     const q = query.trim().toLowerCase();
-    if (q) list = list.filter((c) => c.searchText.includes(q));
-    return list;
-  }, [candidates, chip, query, selected]);
-
-  const hero = filtered[0] ?? null;
-  const rest = hero ? filtered.slice(1) : filtered;
+    return q ? candidates.filter((c) => c.searchText.includes(q)) : candidates;
+  }, [candidates, query]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center" onClick={onClose} role="presentation">
@@ -217,36 +205,13 @@ function MusicPickerSheet({
           <button type="button" onClick={onClose} className="rounded-full px-2 text-white/50 hover:text-white">✕</button>
         </div>
 
-        <div className="flex items-center gap-2 px-5 pt-3">
+        <div className="px-5 pt-3">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search…"
-            className="min-w-0 flex-1 rounded-full border border-white/12 bg-black px-4 py-2.5 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
+            className="w-full rounded-full border border-white/12 bg-black px-4 py-2.5 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/30"
           />
-          <button
-            type="button"
-            disabled
-            title="Import audio (coming soon)"
-            className="shrink-0 cursor-not-allowed rounded-full border border-white/12 px-3 py-2.5 text-xs font-bold text-white/35"
-          >
-            Import audio
-          </button>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto px-5 pt-3 pb-1">
-          {CHIPS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setChip(value)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                chip === value ? "bg-white text-black" : "border border-white/12 text-white/65 hover:bg-white/10"
-              }`}
-            >
-              {value}
-            </button>
-          ))}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
@@ -257,45 +222,18 @@ function MusicPickerSheet({
               {candidates.length === 0 ? "You haven't uploaded any music yet." : "No matches."}
             </p>
           ) : (
-            <>
-              {hero ? <HeroCard candidate={hero} selected={isSelected(hero.link, selected)} onSelect={() => onSelect(hero.link)} /> : null}
-              <div className="mt-2">
-                {rest.map((candidate) => (
-                  <Row
-                    key={candidate.key}
-                    candidate={candidate}
-                    selected={isSelected(candidate.link, selected)}
-                    onSelect={() => onSelect(candidate.link)}
-                  />
-                ))}
-              </div>
-            </>
+            filtered.map((candidate) => (
+              <Row
+                key={candidate.key}
+                candidate={candidate}
+                selected={isSelected(candidate.link, selected)}
+                onSelect={() => onSelect(candidate.link)}
+              />
+            ))
           )}
         </div>
       </div>
     </div>
-  );
-}
-
-function HeroCard({ candidate, selected, onSelect }: { candidate: Candidate; selected: boolean; onSelect: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="flex w-full items-center gap-4 rounded-2xl border border-scrolls-gold/30 bg-gradient-to-br from-white/[0.06] to-transparent p-4 text-left transition hover:from-white/[0.1]"
-    >
-      <Cover url={candidate.coverURL} size={72} />
-      <span className="min-w-0 flex-1">
-        <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.18em] text-scrolls-gold">Featured</span>
-        <span className="flex items-center gap-1.5">
-          <span className="truncate text-base font-black text-white">{candidate.title}</span>
-          {candidate.isExplicit ? <ExplicitBadge /> : null}
-        </span>
-        <span className="block truncate text-sm text-white/60">{candidate.artistLine}</span>
-        {candidate.detail ? <span className="block truncate text-xs text-white/40">{candidate.detail}</span> : null}
-      </span>
-      <SelectIcon selected={selected} />
-    </button>
   );
 }
 

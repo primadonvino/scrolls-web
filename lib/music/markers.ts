@@ -282,6 +282,7 @@ export function strippedCaption(caption?: string | null): string | null {
       const up = line.trim().toUpperCase();
       if (up.startsWith("[VIDEO_CATEGORY]")) return false;
       if (up.startsWith("[FEATURED_MUSIC_BASE64]") || up.startsWith("[VIDEO_FEATURED_MUSIC_BASE64]")) return false;
+      if (up.startsWith("[MUSIC_PLAYLIST_BASE64]")) return false;
       return !ALL_MARKERS.some((m) => up.startsWith(m));
     })
     .join("\n")

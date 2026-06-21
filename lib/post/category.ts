@@ -1,6 +1,7 @@
 import { isArticlePost } from "@/lib/article/article";
 import { postMediaURL } from "@/lib/media/urls";
 import { parseMusicPost } from "@/lib/music/markers";
+import { isPlaylistPost } from "@/lib/music/playlist";
 import type { ScrollsPost, ScrollsUser } from "@/lib/types/scrolls";
 import { parseVideoCategory } from "@/lib/video/category";
 
@@ -12,11 +13,13 @@ export type PostCategory =
   | "photos"
   | "podcasts"
   | "video"
+  | "videoPlain"
   | "shortFilm"
   | "musicVideo"
   | "music"
   | "musicAlbums"
   | "musicSingles"
+  | "musicPlaylists"
   | "musicCollaborations";
 
 export type CategoryLeaf = { value: PostCategory; label: string };
@@ -36,6 +39,7 @@ export const POST_CATEGORY_MENU: CategoryNode[] = [
     label: "Video",
     children: [
       { value: "video", label: "All Video" },
+      { value: "videoPlain", label: "Video" },
       { value: "shortFilm", label: "Short Film" },
       { value: "musicVideo", label: "Music Video" }
     ]
@@ -46,6 +50,7 @@ export const POST_CATEGORY_MENU: CategoryNode[] = [
       { value: "music", label: "All" },
       { value: "musicAlbums", label: "Albums" },
       { value: "musicSingles", label: "Singles/EPs" },
+      { value: "musicPlaylists", label: "Playlists" },
       { value: "musicCollaborations", label: "Collaborations" }
     ]
   }
@@ -119,10 +124,14 @@ export function postMatchesCategory(
       return music.isMusic && music.releaseType === "album";
     case "musicSingles":
       return music.isMusic && music.releaseType === "singlesEPs";
+    case "musicPlaylists":
+      return isPlaylistPost(post.caption);
     case "podcasts":
       return music.isPodcast;
     case "video":
       return type === "video" && !music.isMusic;
+    case "videoPlain":
+      return type === "video" && !music.isMusic && parseVideoCategory(post.caption) === "video";
     case "shortFilm":
       return type === "video" && !music.isMusic && parseVideoCategory(post.caption) === "shortFilm";
     case "musicVideo":
@@ -132,7 +141,12 @@ export function postMatchesCategory(
     case "photos":
       return type === "photo" && !isDrawing(post, type);
     case "writing":
-      return !music.isMusic && !music.isPodcast && (type === "text" || isArticlePost(post));
+      return (
+        !music.isMusic &&
+        !music.isPodcast &&
+        !isPlaylistPost(post.caption) &&
+        (type === "text" || isArticlePost(post))
+      );
     default:
       return true;
   }

@@ -11,8 +11,10 @@ import { PostActions } from "@/components/post/PostActions";
 import { UserBadges } from "@/components/UserBadges";
 import { isArticlePost } from "@/lib/article/article";
 import { postMediaURL } from "@/lib/media/urls";
+import { PlaylistCard } from "@/components/post/PlaylistCard";
 import { featuredDisplayArtist, featuredDisplayTitle, parseFeaturedMusic } from "@/lib/music/featured";
 import { isMusicOrPodcast, photoCarouselURLs, strippedCaption } from "@/lib/music/markers";
+import { parsePlaylistPost } from "@/lib/music/playlist";
 import { parseVideoCategory, videoCategoryLabel } from "@/lib/video/category";
 import type { ScrollsPost } from "@/lib/types/scrolls";
 
@@ -38,8 +40,9 @@ export function PostCard({
   const isArticle = !isMusic && isArticlePost(post);
   const isVideo = !isMusic && !isArticle && (post.mediaPreview?.type ?? post.type) === "video";
   const videoLabel = isVideo ? videoCategoryLabel(parseVideoCategory(post.caption)) : null;
-  const featured = !isMusic && !isArticle ? parseFeaturedMusic(post.caption) : null;
-  const displayCaption = strippedCaption(caption);
+  const playlistMeta = parsePlaylistPost(post.caption);
+  const featured = !isMusic && !isArticle && !playlistMeta ? parseFeaturedMusic(post.caption) : null;
+  const displayCaption = playlistMeta ? null : strippedCaption(caption);
   const carouselExtras = !isMusic && !isArticle ? photoCarouselURLs(post.caption) : [];
   const carouselImages = carouselExtras.length
     ? ([postMediaURL(post), ...carouselExtras].filter(Boolean) as string[])
@@ -75,7 +78,9 @@ export function PostCard({
           <div className="truncate text-sm text-white/55">@{username}</div>
         </div>
       </Link>
-      {isMusic ? (
+      {playlistMeta ? (
+        <PlaylistCard post={post} meta={playlistMeta} />
+      ) : isMusic ? (
         <MusicCard post={post} />
       ) : isArticle ? (
         <ArticleCard post={post} />

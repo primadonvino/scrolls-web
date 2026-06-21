@@ -182,17 +182,25 @@ export async function fetchRescrollsByAuthor(authorID: string, token?: string): 
 
 export type MusicPlaylist = {
   id: string;
+  ownerID?: string | null;
+  postID?: string | null;
   title: string;
   visibility?: string | null;
   coverRef?: string | null;
-  cover_ref?: string | null;
   coverProvider?: string | null;
-  cover_provider?: string | null;
   coverBucket?: string | null;
-  cover_bucket?: string | null;
   coverObjectKey?: string | null;
-  cover_object_key?: string | null;
   trackCount?: number | null;
+};
+
+export type PlaylistDetailTrack = {
+  id: string;
+  playlistID: string;
+  sourcePostID: string;
+  trackID: string;
+  trackTitle: string;
+  artistCreditsSnapshot?: unknown[];
+  sortOrder?: number | null;
 };
 
 export type PlaylistCover = {
@@ -206,16 +214,30 @@ export type PlaylistTrackInput = {
   sourcePostID: string;
   trackID: string;
   trackTitle: string;
-  artistCredits?: unknown[];
+  artistCreditsSnapshot?: unknown[];
 };
 
 export async function fetchMyPlaylists(token: string): Promise<MusicPlaylist[]> {
   const result = await request<{ playlists?: MusicPlaylist[] } | MusicPlaylist[]>(
-    "/music/playlists",
+    "/music-playlists",
     { cache: "no-store" },
     token
   );
   return Array.isArray(result) ? result : result.playlists ?? [];
+}
+
+export async function fetchPlaylistDetail(
+  playlistID: string,
+  token?: string
+): Promise<{ playlist: MusicPlaylist; tracks: PlaylistDetailTrack[] } | null> {
+  const params = new URLSearchParams({ playlist_id: playlistID });
+  const result = await request<{ playlist?: MusicPlaylist; tracks?: PlaylistDetailTrack[] }>(
+    `/music-playlists/detail?${params}`,
+    { cache: "no-store" },
+    token
+  );
+  if (!result?.playlist) return null;
+  return { playlist: result.playlist, tracks: result.tracks ?? [] };
 }
 
 export async function createPlaylist(
@@ -223,11 +245,12 @@ export async function createPlaylist(
   token: string,
   cover?: PlaylistCover
 ): Promise<MusicPlaylist> {
-  return request<MusicPlaylist>(
-    "/music/playlists",
-    { method: "POST", body: JSON.stringify({ title: title.trim(), ...(cover ?? {}) }) },
+  const result = await request<{ playlist?: MusicPlaylist } | MusicPlaylist>(
+    "/music-playlists",
+    { method: "POST", body: JSON.stringify({ title: title.trim(), visibility: "public", ...(cover ?? {}) }) },
     token
   );
+  return "playlist" in result && result.playlist ? result.playlist : (result as MusicPlaylist);
 }
 
 /**
@@ -254,9 +277,9 @@ export async function uploadPlaylistCover(
 }
 
 export async function addTrackToPlaylist(playlistID: string, track: PlaylistTrackInput, token: string) {
-  return request<{ ok: boolean }>(
-    `/music/playlists/${encodeURIComponent(playlistID)}/tracks`,
-    { method: "POST", body: JSON.stringify(track) },
+  return request<{ ok?: boolean; track?: unknown }>(
+    "/music-playlists/tracks",
+    { method: "POST", body: JSON.stringify({ playlistID, ...track }) },
     token
   );
 }

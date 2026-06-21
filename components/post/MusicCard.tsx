@@ -423,7 +423,7 @@ function PlaylistSheet({ post, track, onClose }: { post: ScrollsPost; track: Mus
           sourcePostID: post.id,
           trackID: track.id,
           trackTitle: track.title,
-          artistCredits: track.collaboratorCredits ?? []
+          artistCreditsSnapshot: track.collaboratorCredits ?? []
         },
         session.token
       );
@@ -458,7 +458,7 @@ function PlaylistSheet({ post, track, onClose }: { post: ScrollsPost; track: Mus
           sourcePostID: post.id,
           trackID: track.id,
           trackTitle: track.title,
-          artistCredits: track.collaboratorCredits ?? []
+          artistCreditsSnapshot: track.collaboratorCredits ?? []
         },
         session.token
       );
