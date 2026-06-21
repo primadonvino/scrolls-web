@@ -416,6 +416,7 @@ export type MusicTrackUpload = {
   isExplicit: boolean;
   lyrics?: string | null;
   durationSeconds?: number | null;
+  collaboratorCredits?: MusicTrackCredit[];
 };
 
 /**
@@ -472,7 +473,8 @@ export async function createMusicPost(
       audioURL: publicURL,
       durationSeconds: track.durationSeconds ?? null,
       lyrics: track.lyrics?.trim() || null,
-      isExplicit: track.isExplicit
+      isExplicit: track.isExplicit,
+      collaboratorCredits: track.collaboratorCredits
     });
   }
 

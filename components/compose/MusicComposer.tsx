@@ -7,6 +7,7 @@ import {
   type MusicTrackEdit,
   type MusicTrackUpload
 } from "@/lib/api/scrolls";
+import { TrackCollaborators } from "@/components/compose/TrackCollaborators";
 import { UploadProgressBar } from "@/components/compose/UploadProgressBar";
 import { readFreshSession } from "@/lib/auth/session";
 import { postCoverURL } from "@/lib/media/urls";
@@ -231,7 +232,8 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
           title: track.title,
           isExplicit: track.isExplicit,
           lyrics: track.lyrics,
-          durationSeconds: track.durationSeconds
+          durationSeconds: track.durationSeconds,
+          collaboratorCredits: track.collaboratorCredits
         }));
         await createMusicPost(
           {
@@ -411,6 +413,10 @@ export function MusicComposer({ onPosted, editPost }: { onPosted: () => void; ed
                   placeholder="Lyrics (optional)"
                   rows={2}
                   className="mt-2 w-full resize-none rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white/85 outline-none placeholder:text-white/30 focus:border-white/30"
+                />
+                <TrackCollaborators
+                  credits={track.collaboratorCredits}
+                  onChange={(next) => updateTrack(track.key, { collaboratorCredits: next })}
                 />
               </li>
             ))}

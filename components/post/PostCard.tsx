@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
+import { FeaturedAudioSnippet } from "@/components/post/FeaturedAudioSnippet";
 import { MediaRenderer } from "@/components/media/MediaRenderer";
 import { ArticleCard } from "@/components/post/ArticleCard";
 import { MusicCard } from "@/components/post/MusicCard";
@@ -42,7 +43,9 @@ export function PostCard({
   const videoLabel = isVideo ? videoCategoryLabel(parseVideoCategory(post.caption)) : null;
   const playlistMeta = parsePlaylistPost(post.caption);
   const featured = !isMusic && !isArticle && !playlistMeta ? parseFeaturedMusic(post.caption) : null;
+  const isPhoto = (post.mediaPreview?.type ?? post.type) === "photo";
   const displayCaption = playlistMeta ? null : strippedCaption(caption);
+  const articleRef = useRef<HTMLElement>(null);
   const carouselExtras = !isMusic && !isArticle ? photoCarouselURLs(post.caption) : [];
   const carouselImages = carouselExtras.length
     ? ([postMediaURL(post), ...carouselExtras].filter(Boolean) as string[])
@@ -50,7 +53,7 @@ export function PostCard({
   const isCarousel = carouselImages.length > 1;
 
   return (
-    <article className="scrolls-glass relative rounded-[1.8rem] p-4 has-[details[open]]:z-30">
+    <article ref={articleRef} className="scrolls-glass relative rounded-[1.8rem] p-4 has-[details[open]]:z-30">
       {rescroller ? (
         <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-white/45">
           <span aria-hidden>↻</span>
@@ -106,6 +109,7 @@ export function PostCard({
           <span className="shrink-0 text-white/45">· {featuredDisplayArtist(featured)}</span>
         </Link>
       ) : null}
+      {featured && isPhoto ? <FeaturedAudioSnippet targetRef={articleRef} link={featured} /> : null}
       {!isMusic && !isArticle && displayCaption ? (
         <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-white/85">{displayCaption}</p>
       ) : null}
