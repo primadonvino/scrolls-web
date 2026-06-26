@@ -2,17 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertTriangle, LogOut, Megaphone, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, LogOut, Megaphone, Plus, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ThemeSelector } from "@/components/theme/ThemeSelector";
-import { clearSession, readFreshSession, readSession } from "@/lib/auth/session";
+import { clearSession, listSavedAccounts, readFreshSession, readSession, removeSavedAccount, switchAccount, type StoredAccountSession } from "@/lib/auth/session";
 import { deleteCurrentAccount } from "@/lib/api/scrolls";
 import type { AuthSession } from "@/lib/types/scrolls";
 
 export default function AccountPage() {
   const router = useRouter();
   const [session, setSession] = useState<AuthSession | null>(() => readSession());
+  const [accounts, setAccounts] = useState<StoredAccountSession[]>([]);
   const [busy, setBusy] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +21,10 @@ export default function AccountPage() {
   useEffect(() => {
     let cancelled = false;
     readFreshSession().then((fresh) => {
-      if (!cancelled) setSession(fresh);
+      if (!cancelled) {
+        setSession(fresh);
+        setAccounts(listSavedAccounts());
+      }
     });
     return () => {
       cancelled = true;
@@ -30,7 +34,24 @@ export default function AccountPage() {
   function signOut() {
     clearSession();
     setSession(null);
+    setAccounts(listSavedAccounts());
     router.push("/login");
+  }
+
+  function selectAccount(userID: string) {
+    const next = switchAccount(userID);
+    if (!next) return;
+    setSession(next);
+    setAccounts(listSavedAccounts());
+    router.refresh();
+  }
+
+  function removeAccount(userID: string) {
+    removeSavedAccount(userID);
+    const next = readSession();
+    setSession(next);
+    setAccounts(listSavedAccounts());
+    if (!next) router.push("/login");
   }
 
   async function deleteAccount() {
@@ -130,6 +151,58 @@ export default function AccountPage() {
                 >
                   Open profile in app
                 </a>
+              </div>
+            </div>
+
+            <div className="scrolls-glass rounded-[1.8rem] p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-black">Saved accounts</h2>
+                  <p className="mt-1 text-sm text-white/55">Switch between Scrolls accounts saved on this browser.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/login?add=1")}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-black text-black"
+                >
+                  <Plus size={17} /> Add
+                </button>
+              </div>
+              <div className="mt-4 space-y-2">
+                {accounts.map((account) => (
+                  <div
+                    key={account.user.id}
+                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3"
+                  >
+                    <Avatar user={account.user} size={44} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-black">
+                        {account.user.displayName ?? account.user.display_name ?? account.user.username}
+                      </p>
+                      <p className="truncate text-xs text-white/50">@{account.user.username}</p>
+                    </div>
+                    {account.user.id === user.id ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-scrolls-blue/15 px-3 py-1 text-xs font-black text-scrolls-blue">
+                        <Check size={14} /> Active
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => selectAccount(account.user.id)}
+                        className="rounded-full border border-white/15 px-4 py-2 text-xs font-black text-white/85 transition hover:bg-white/10"
+                      >
+                        Switch
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeAccount(account.user.id)}
+                      className="rounded-full border border-red-300/25 px-3 py-2 text-xs font-black text-red-100/80 transition hover:bg-red-400/10"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
 
