@@ -8,7 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { BrandMark } from "@/components/BrandMark";
 import { AppCTA } from "@/components/AppCTA";
 import { NotificationBell } from "@/components/NotificationBell";
-import { clearSession, listSavedAccounts, readSession, switchAccount, type StoredAccountSession } from "@/lib/auth/session";
+import { clearSession, hydrateFounderManagedAccounts, listSavedAccounts, readSession, switchAccount, type StoredAccountSession } from "@/lib/auth/session";
 
 type NavLink = { href: string; label: string; icon: ReactNode };
 
@@ -45,6 +45,10 @@ export function SiteHeader() {
     }
 
     syncAuthState();
+    const session = readSession();
+    if (session?.token && (session.user?.isFounder ?? session.user?.is_founder)) {
+      hydrateFounderManagedAccounts(session).catch(() => undefined);
+    }
     window.addEventListener("scrolls-session-changed", syncAuthState);
     window.addEventListener("storage", syncAuthState);
     return () => {

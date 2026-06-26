@@ -6,7 +6,7 @@ import { AlertTriangle, Check, LogOut, Megaphone, Plus, Trash2 } from "lucide-re
 import { Avatar } from "@/components/Avatar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ThemeSelector } from "@/components/theme/ThemeSelector";
-import { clearSession, listSavedAccounts, readFreshSession, readSession, removeSavedAccount, switchAccount, type StoredAccountSession } from "@/lib/auth/session";
+import { clearSession, hydrateFounderManagedAccounts, listSavedAccounts, readFreshSession, readSession, removeSavedAccount, switchAccount, type StoredAccountSession } from "@/lib/auth/session";
 import { deleteCurrentAccount } from "@/lib/api/scrolls";
 import type { AuthSession } from "@/lib/types/scrolls";
 
@@ -20,11 +20,18 @@ export default function AccountPage() {
 
   useEffect(() => {
     let cancelled = false;
-    readFreshSession().then((fresh) => {
+    async function load() {
+      const fresh = await readFreshSession();
+      if (fresh?.token && (fresh.user?.isFounder ?? fresh.user?.is_founder)) {
+        await hydrateFounderManagedAccounts(fresh);
+      }
       if (!cancelled) {
         setSession(fresh);
         setAccounts(listSavedAccounts());
       }
+    }
+    load().catch(() => {
+      if (!cancelled) setAccounts(listSavedAccounts());
     });
     return () => {
       cancelled = true;

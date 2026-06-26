@@ -1,11 +1,12 @@
 "use client";
 
-import { refresh as refreshAuthSession } from "@/lib/api/scrolls";
-import type { AuthSession } from "@/lib/types/scrolls";
+import { fetchProfile, refresh as refreshAuthSession } from "@/lib/api/scrolls";
+import type { AuthSession, ScrollsUser } from "@/lib/types/scrolls";
 
 const sessionKey = "scrolls.web.session";
 const accountsKey = "scrolls.web.accounts.v1";
 const activeAccountKey = "scrolls.web.activeAccountID";
+const founderManagedUsernames = ["scrolls", "gelanella", "ovispictures", "amerigomagazine", "provostodaro"] as const;
 
 export type StoredAccountSession = AuthSession & {
   lastUsedAt: string;
@@ -53,6 +54,46 @@ export function listSavedAccounts(): StoredAccountSession[] {
   }
 }
 
+export async function hydrateFounderManagedAccounts(session: AuthSession | null = readSession()) {
+  if (typeof window === "undefined" || !session?.token || !isFounderUser(session.user)) {
+    return listSavedAccounts();
+  }
+
+  const existing = listSavedAccounts();
+  const existingUsernames = new Set(existing.map((account) => normalizeUsername(account.user?.username)));
+  const missingUsernames = founderManagedUsernames.filter((username) => !existingUsernames.has(username));
+  if (missingUsernames.length === 0) return existing;
+
+  const fetched = await Promise.all(
+    missingUsernames.map((username) => fetchProfile(username, session.token).catch(() => null))
+  );
+  const profiles = fetched.filter((profile): profile is ScrollsUser => Boolean(profile?.id && profile?.username));
+  if (profiles.length === 0) return existing;
+
+  const mergedByID = new Map<string, StoredAccountSession>();
+  for (const account of existing) {
+    if (account.user?.id) mergedByID.set(account.user.id, account);
+  }
+
+  for (const profile of profiles) {
+    const existingAccount = mergedByID.get(profile.id);
+    mergedByID.set(profile.id, {
+      token: session.token,
+      refresh_token: session.refresh_token,
+      refreshToken: session.refreshToken,
+      user: profile,
+      lastUsedAt: existingAccount?.lastUsedAt ?? new Date(0).toISOString()
+    });
+  }
+
+  const merged = Array.from(mergedByID.values())
+    .sort((a, b) => Date.parse(b.lastUsedAt ?? "") - Date.parse(a.lastUsedAt ?? ""))
+    .slice(0, 12);
+  window.localStorage.setItem(accountsKey, JSON.stringify(merged));
+  window.dispatchEvent(new Event("scrolls-session-changed"));
+  return merged;
+}
+
 export function switchAccount(userID: string): AuthSession | null {
   const account = listSavedAccounts().find((item) => item.user?.id === userID);
   if (!account) return null;
@@ -62,6 +103,14 @@ export function switchAccount(userID: string): AuthSession | null {
   saveAccountSession(session);
   window.dispatchEvent(new Event("scrolls-session-changed"));
   return session;
+}
+
+function isFounderUser(user?: ScrollsUser | null): boolean {
+  return Boolean(user?.isFounder ?? user?.is_founder);
+}
+
+function normalizeUsername(value?: string | null): string {
+  return (value ?? "").trim().toLowerCase();
 }
 
 export function removeSavedAccount(userID: string) {
