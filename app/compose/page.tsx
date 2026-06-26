@@ -78,6 +78,7 @@ export default function ComposePage() {
   const carouselEligible = canPostCarousel(user);
   const premiumEligible = hasSubscriberBenefits(user);
   const vPolicy = videoPolicy(user);
+  const isFounder = Boolean(user?.isFounder ?? user?.is_founder);
 
   function selectMode(next: Mode) {
     setMode(next);
@@ -158,9 +159,10 @@ export default function ComposePage() {
       video.preload = "metadata";
       video.onloadedmetadata = () => {
         setAspectRatio(video.videoHeight ? video.videoWidth / video.videoHeight : null);
-        // Enforce the per-tier video length cap (free 7s, Blue 60s, Gold 10m).
+        // Founder accounts are uncapped on video length; everyone else follows
+        // the normal free/Blue/Gold duration policy.
         const max = vPolicy.maxDurationSeconds;
-        if (Number.isFinite(video.duration) && video.duration > max + 0.1) {
+        if (!isFounder && Number.isFinite(video.duration) && video.duration > max + 0.1) {
           setError(videoLimitMessage(max));
           setFile(null);
           if (url.startsWith("blob:")) URL.revokeObjectURL(url);
@@ -338,10 +340,13 @@ export default function ComposePage() {
                 </button>
                 {mode === "video" ? (
                   <p className="mt-3 text-xs text-white/40">
-                    {vPolicy.maxDurationSeconds >= 60
-                      ? `Up to ${Math.round(vPolicy.maxDurationSeconds / 60)} min`
-                      : `Up to ${vPolicy.maxDurationSeconds}s`}{" "}
-                    on your account ({vPolicy.tierLabel}).
+                    {isFounder
+                      ? "Founder account: no video length cap."
+                      : `${
+                          vPolicy.maxDurationSeconds >= 60
+                            ? `Up to ${Math.round(vPolicy.maxDurationSeconds / 60)} min`
+                            : `Up to ${vPolicy.maxDurationSeconds}s`
+                        } on your account (${vPolicy.tierLabel}).`}
                   </p>
                 ) : null}
                 {mode === "photo" ? (
